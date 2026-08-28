@@ -1,0 +1,246 @@
+/**
+ * app/api/_lib/wire.ts — transport shapes and coercers for the /api routes.
+ *
+ * Rule of authority: every SPEC §3 data shape lives in lib/engine/schemas.ts
+ * and is imported — never redeclared. What lives here is strictly transport:
+ * request envelopes, wire subsets sent to the LLM (server-stamped fields
+ * omitted so models never invent ids), and tolerant coercers that turn a dep
+ * ladder payload (live result or fixture JSON) into a §3 type. Every coercer
+ * finishes with a schemas.ts parse — off-contract data becomes a state
+ * (lacuna / weakly_sourced), never a widened type.
+ *
+ * All LLM wire schemas are FLAT — no z.union anywhere: Gemini structured
+ * output rejects it (DATA-CAVEATS addendum §3). z.enum is fine.
+ */
+import { z } from "zod";
+import {
+  ClaimSchema,
+  LogicalFormSchema,
+  SourceVerdictSchema,
+  StanceClusterSchema,
+  TickerEventSchema,
+  type Claim,
+  type DepMode,
+  type LogicalForm,
+  type SourceVerdict,
+  type StanceCluster,
+  type TickerEvent,
+} from "@/lib/engine/schemas";
+import { isRecord } from "./adapter";
+
+/* ------------------------------------------------- request envelopes ------ */
+
+export const ExtractRequestSchema = z.object({
+  text: z.string().min(1, "paste some text to collate").max(50_000),
+});
+
+export const StanceRequestSchema = z.object({
+  question: z.string().min(1, "a contested question is required").max(500),
+});
+
+/** POST /api/events body — the server stamps `at`, so the client never sends it. */
+export const EventInputSchema = TickerEventSchema.omit({ at: true });
+
+/* ----------------------------------------------- LLM wire schemas --------- */
+
+/** Extractor output: id/documentId are server-stamped after the call. */
+export const ExtractionWire = z.object({
+  claims: z.array(ClaimSchema.omit({ id: true, documentId: true })),
+});
+
+/** Formalizer output: claimId is re-attached by the route. */
+export const FormalizeWire = LogicalFormSchema.omit({ claimId: true });
+
+/**
+ * Judge output: claimId and per-source fetchedVia are server truths — the
+ * model only assesses. The full §3 SourceVerdict is assembled in the route
+ * and parsed against SourceVerdictSchema before returning.
+ */
+export const JudgeWire = z.object({
+  status: SourceVerdictSchema.shape.status,
+  rationale: z.string(),
+  sources: z.array(
+    z.object({
+      url: z.string(),
+      title: z.string(),
+      quoteSpan: z.string().optional(),
+    }),
+  ),
+});
+
+/** Stance clustering output — §3 StanceCluster[] under one object key. */
+export const ClustersWire = z.object({
+  clusters: z.array(StanceClusterSchema),
+});
+
+/* ------------------------------------------- dependency wire coercers ----- */
+
+const SearchResultWire = z.object({
+  url: z.string().min(1),
+  title: z.string().optional(),
+  snippet: z.string().optional(),
+  content: z.string().optional(), // Tavily's name for the snippet (addendum §1)
+});
+
+export type SearchResult = { url: string; title: string; snippet?: string };
+
+/** Accepts a bare array or { results: [...] } (Tavily shape); drops malformed rows. */
+export function coerceSearchResults(data: unknown): SearchResult[] {
+  const raw = Array.isArray(data)
+    ? data
+    : isRecord(data) && Array.isArray(data.results)
+      ? data.results
+      : null;
+  if (!raw) return [];
+  const out: SearchResult[] = [];
+  for (const item of raw) {
+    const parsed = SearchResultWire.safeParse(item);
+    if (!parsed.success) continue;
+    out.push({
+      url: parsed.data.url,
+      title: parsed.data.title ?? parsed.data.url,
+      snippet: parsed.data.snippet ?? parsed.data.content,
+    });
+  }
+  return out;
+}
+
+const PageWire = z.object({
+  url: z.string().optional(),
+  title: z.string().optional(),
+  text: z.string().optional(),
+  extractedText: z.string().optional(),
+  content: z.string().optional(),
+});
+
+export type ExtractedPage = { url: string; title?: string; text: string };
+
+/**
+ * An empty extraction is a RESULT (DATA-CAVEATS §2): null here degrades the
+ * verdict to weakly_sourced in the route — never a retry loop.
+ */
+export function coercePage(data: unknown, requestedUrl: string): ExtractedPage | null {
+  if (typeof data === "string") {
+    return data.trim() ? { url: requestedUrl, text: data } : null;
+  }
+  const parsed = PageWire.safeParse(data);
+  if (!parsed.success) return null;
+  const text = parsed.data.text ?? parsed.data.extractedText ?? parsed.data.content;
+  if (!text || !text.trim()) return null;
+  return { url: parsed.data.url ?? requestedUrl, title: parsed.data.title, text };
+}
+
+/* -------------------------------------------------- §3 output coercers ---- */
+
+/**
+ * unknown (live LLM output or fixture JSON — bare Claim[] or { claims })
+ * → Claim[] stamped with server ids, or null when off-contract.
+ */
+export function coerceClaims(data: unknown, documentId: string): Claim[] | null {
+  const raw = Array.isArray(data)
+    ? data
+    : isRecord(data) && Array.isArray(data.claims)
+      ? data.claims
+      : null;
+  if (!raw) return null;
+  const stamped = raw.map((item) => {
+    if (!isRecord(item)) return item;
+    const id = typeof item.id === "string" && item.id.length > 0 ? item.id : crypto.randomUUID();
+    return { ...item, id, documentId };
+  });
+  const parsed = z.array(ClaimSchema).safeParse(stamped);
+  return parsed.success ? parsed.data : null;
+}
+
+/** unknown → LogicalForm bound to the requesting claim, or null. */
+export function coerceLogicalForm(data: unknown, claimId: string): LogicalForm | null {
+  const candidate = isRecord(data) && isRecord(data.logicalForm) ? data.logicalForm : data;
+  if (!isRecord(candidate)) return null;
+  const parsed = LogicalFormSchema.safeParse({ ...candidate, claimId });
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * unknown (judge output or fixture verdict) → SourceVerdict with claimId and
+ * per-source fetchedVia set from server truth, or null.
+ */
+export function coerceVerdict(
+  data: unknown,
+  claimId: string,
+  viaByUrl: ReadonlyMap<string, DepMode>,
+  defaultVia: DepMode,
+): SourceVerdict | null {
+  const candidate = isRecord(data) && isRecord(data.verdict) ? data.verdict : data;
+  if (!isRecord(candidate)) return null;
+  const rawSources = Array.isArray(candidate.sources) ? candidate.sources : [];
+  const sources = rawSources.filter(isRecord).map((source) => ({
+    ...source,
+    fetchedVia:
+      typeof source.fetchedVia === "string"
+        ? source.fetchedVia
+        : (viaByUrl.get(typeof source.url === "string" ? source.url : "") ?? defaultVia),
+  }));
+  const parsed = SourceVerdictSchema.safeParse({ ...candidate, claimId, sources });
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * unknown (bare StanceCluster[] or { clusters }) → StanceCluster[] with ids
+ * filled and each member source back-linked via stanceClusterId, or null.
+ */
+export function coerceClusters(data: unknown): StanceCluster[] | null {
+  const raw = Array.isArray(data)
+    ? data
+    : isRecord(data) && Array.isArray(data.clusters)
+      ? data.clusters
+      : null;
+  if (!raw) return null;
+  const prepared = raw.map((cluster) => {
+    if (!isRecord(cluster)) return cluster;
+    const id =
+      typeof cluster.id === "string" && cluster.id.length > 0
+        ? cluster.id
+        : crypto.randomUUID();
+    const sources = Array.isArray(cluster.sources)
+      ? cluster.sources.map((source) =>
+          isRecord(source)
+            ? {
+                ...source,
+                id:
+                  typeof source.id === "string" && source.id.length > 0
+                    ? source.id
+                    : crypto.randomUUID(),
+                stanceClusterId:
+                  typeof source.stanceClusterId === "string" && source.stanceClusterId.length > 0
+                    ? source.stanceClusterId
+                    : id,
+              }
+            : source,
+        )
+      : cluster.sources;
+    return { ...cluster, id, sources };
+  });
+  const parsed = z.array(StanceClusterSchema).safeParse(prepared);
+  return parsed.success ? parsed.data : null;
+}
+
+/** unknown DB rows → TickerEvent[]; malformed rows drop, `at` normalizes to ISO. */
+export function coerceEvents(data: unknown): TickerEvent[] {
+  const raw = Array.isArray(data)
+    ? data
+    : isRecord(data) && Array.isArray(data.data)
+      ? data.data
+      : [];
+  const out: TickerEvent[] = [];
+  for (const row of raw) {
+    if (!isRecord(row)) continue;
+    const normalized = {
+      ...row,
+      count: row.count ?? undefined, // DB null → schema-optional
+      at: row.at instanceof Date ? row.at.toISOString() : row.at,
+    };
+    const parsed = TickerEventSchema.safeParse(normalized);
+    if (parsed.success) out.push(parsed.data);
+  }
+  return out;
+}

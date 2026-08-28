@@ -1,0 +1,29 @@
+{
+  "claims": [
+    {
+      "text": "France decarbonized most of its electricity in under two decades by building standardized nuclear reactors.",
+      "kind": "empirical",
+      "confidence": 0.92
+    },
+    {
+      "text": "New nuclear plants routinely run about a decade late and billions over budget.",
+      "kind": "empirical",
+      "confidence": 0.78
+    },
+    {
+      "text": "Any climate plan that excludes nuclear power is not serious.",
+      "kind": "normative",
+      "confidence": 0.85
+    },
+    {
+      "text": "Decarbonization means cutting total system emissions, not merely adding low-carbon supply.",
+      "kind": "definitional",
+      "confidence": 0.81
+    },
+    {
+      "text": "Governments should extend the lifetimes of existing nuclear reactors.",
+      "kind": "normative",
+      "confidence": 0.88
+    }
+  ]
+}

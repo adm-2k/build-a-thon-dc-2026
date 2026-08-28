@@ -1,0 +1,51 @@
+[
+  {
+    "term": "experience",
+    "yearBucket": 1500,
+    "relFreq": 0.0000021,
+    "senses": [],
+    "provenance": "fixture"
+  },
+  {
+    "term": "experience",
+    "yearBucket": 1600,
+    "relFreq": 0.000019,
+    "senses": [],
+    "provenance": "fixture"
+  },
+  {
+    "term": "experience",
+    "yearBucket": 1700,
+    "relFreq": 0.000039,
+    "senses": [],
+    "provenance": "fixture"
+  },
+  {
+    "term": "experience",
+    "yearBucket": 1800,
+    "relFreq": 0.000054,
+    "senses": [],
+    "provenance": "fixture"
+  },
+  {
+    "term": "experience",
+    "yearBucket": 1900,
+    "relFreq": 0.000061,
+    "senses": [],
+    "provenance": "fixture"
+  },
+  {
+    "term": "experience",
+    "yearBucket": 1950,
+    "relFreq": 0.000079,
+    "senses": [],
+    "provenance": "fixture"
+  },
+  {
+    "term": "experience",
+    "yearBucket": 2000,
+    "relFreq": 0.000102,
+    "senses": [],
+    "provenance": "fixture"
+  }
+]

@@ -1,0 +1,35 @@
+{
+  "query": "Is nuclear power the fastest path to decarbonization?",
+  "results": [
+    {
+      "url": "https://www.iea.org/reports/nuclear-power-and-secure-energy-transitions",
+      "title": "Nuclear Power and Secure Energy Transitions — IEA",
+      "snippet": "Lifetime extensions of existing reactors are among the cheapest sources of additional low-emissions electricity; net-zero pathways roughly double global nuclear capacity by 2050."
+    },
+    {
+      "url": "https://world-nuclear.org/information-library/energy-and-the-environment/nuclear-energy-and-climate-change",
+      "title": "Nuclear Energy and Climate Change — World Nuclear Association",
+      "snippet": "Nuclear plants deliver large volumes of firm low-carbon power; France's 1974–1989 build-out remains the fastest national decarbonization of an electricity system on record."
+    },
+    {
+      "url": "https://www.lazard.com/research-insights/levelized-cost-of-energyplus/",
+      "title": "Levelized Cost of Energy+ — Lazard",
+      "snippet": "Unsubsidized utility-scale solar and onshore wind remain the cheapest new-build generation on a levelized basis, while new nuclear carries the highest LCOE range and the widest uncertainty band."
+    },
+    {
+      "url": "https://ourworldindata.org/nuclear-energy",
+      "title": "Nuclear Energy — Our World in Data",
+      "snippet": "Annual additions of solar and wind now far outpace nuclear, though nuclear's 1980s build rates remain unmatched per unit of firm capacity added."
+    },
+    {
+      "url": "https://www.oecd-nea.org/jcms/pl_51110/projected-costs-of-generating-electricity-2020-edition",
+      "title": "Projected Costs of Generating Electricity 2020 — OECD NEA",
+      "snippet": "Plant-level LCOE comparisons omit system costs; including balancing and network costs changes the ranking of low-carbon portfolios."
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/Nuclear_power_debate",
+      "title": "Nuclear power debate — Wikipedia",
+      "snippet": "Overview of arguments over cost, construction timelines, safety, waste, and the role of nuclear power in climate change mitigation."
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+/* Hub — the catalogue. DESIGN-BRIEF §10. All values from tokens.css. */
+
+.container {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 0 calc(var(--space-unit) * 3);
+}
+
+/* Display thesis — poster scale, one rubricated phrase. */
+.thesis {
+  font-family: var(--font-arch);
+  font-weight: 600;
+  font-size: var(--display-2);
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  text-wrap: balance;
+  color: var(--ink);
+  margin: 0;
+  max-width: 24ch;
+}
+
+@media (max-width: 640px) {
+  .thesis {
+    font-size: var(--display-1);
+  }
+}
+
+/* The misregistration treatment — one display phrase per page at most. */
+.rubricated {
+  color: var(--rubric);
+  text-shadow: 0.045em 0.045em 0 var(--misreg);
+}
+
+.lead {
+  font-family: var(--font-arch);
+  font-size: var(--text-lead);
+  color: var(--ink-2);
+  margin: calc(var(--space-unit) * 3) 0 0;
+  max-width: 65ch;
+}
+
+/* Catalogue grid — compartment cells sharing 1px hairlines (collapse doubles). */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1px;
+  background: var(--hairline);
+  border: 1px solid var(--hairline);
+}
+
+.cell {
+  display: block;
+  background: var(--stock);
+  padding: calc(var(--space-unit) * 4);
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--dur) var(--ease);
+}
+
+a.cell:hover {
+  background: var(--stock-2);
+}
+
+.cellTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: calc(var(--space-unit) * 4);
+}
+
+/* Arrow-circle — a licensed circle (DESIGN-BRIEF §6/§11). */
+.arrow {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  font-size: var(--text-ui);
+  line-height: 1;
+  flex: none;
+  transition:
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+
+a.cell:hover .arrow {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.name {
+  font-family: var(--font-arch);
+  font-weight: 600;
+  font-size: var(--text-lead);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 var(--space-unit);
+}
+
+.function {
+  font-family: var(--font-arch);
+  font-size: var(--text-ui);
+  color: var(--ink-2);
+  margin: 0 0 calc(var(--space-unit) * 3);
+  max-width: 44ch;
+}
+
+.status {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  color: var(--ink-2);
+  margin: 0;
+}
+
+/* Greyed stretch instrument — disabled voice. */
+.greyed {
+  opacity: 0.6;
+}
