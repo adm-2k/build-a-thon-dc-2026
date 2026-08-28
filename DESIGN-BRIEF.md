@@ -329,11 +329,11 @@ contrast vs surface — both modes). Use exactly as specified:
 A table of contents in compartment cells. Anatomy top to bottom: ticker (build-a-thon
 announcements) → folio header with `<apparatus/>` wordmark → a display-scale thesis
 line (one rubricated phrase, optional misregistration treatment) → the catalogue grid:
-five catalogue cells, one per instrument, each with N°, name, one-line function, and a
+one catalogue cell per instrument (three in the confirmed build — see the errata below), each with N°, name, one-line function, and a
 **live count** pulled from the instrument (`14 CLASSES DEFINED`) → colophon with stamp.
 Identity comes from the registry number, never from per-app colors.
 
-### Instruments (tool list pending confirmation — apply the pattern to the real five)
+### Instruments (ERRATA 2026-08-28: the confirmed list is SPEC §0's **three** — Tracer N°01, Map N°02, Begriffs N°03 — and the hub renders 3 catalogue cells. The five below are pattern examples only; apply their styling notes by analogy — N°01 graph rules → Map, N°05 reading view → Tracer. See ORCHESTRATION §8 T8.)
 
 | N° | Working name | System notes |
 |---|---|---|

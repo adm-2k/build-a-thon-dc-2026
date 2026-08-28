@@ -1,10 +1,14 @@
 # HANDOFF.md — Cross-lane queue
 
-The only file every lane may append to. Three sections, three purposes. Keep
-entries to one line each; the orchestrator polls this file roughly every 15
-minutes (docs/ORCHESTRATION.md §7). Never put a key, token, or URL-with-secret
-in this file — name the env var you need and the orchestrator delivers it
-out-of-band.
+The only file every lane may append to — and it has **exactly one live copy**:
+this file in **A's main checkout**, addressed by absolute path
+(`~/Documents/GitHub/build-a-thon-dc-2026/docs/HANDOFF.md`). Lane sessions
+read and append that path directly (the one sanctioned exception to "stay in
+your worktree"); never the copy inside your own worktree, which is a stale
+snapshot. Only A commits this file. Keep entries to one line each; the
+orchestrator polls roughly every 15 minutes (docs/ORCHESTRATION.md §7). Never
+put a key, token, or URL-with-secret in this file — name the env var you need
+and the orchestrator delivers it out-of-band.
 
 ## ORCHESTRATOR QUEUE
 
@@ -14,7 +18,7 @@ Append-only. `TYPE` is one of `KEY` (need a credential/env var), `DECISION`
 
 | Time | Lane | Type | Ask (one line) | Status |
 |------|------|------|----------------|--------|
-| —    | —    | —    | *(example: `13:40 · B · KEY · need DEP_SEARCH_MODE=live + SEARCH_API_KEY in my .env.local to test real queries`)* | open |
+| —    | —    | —    | *(example: `13:40 · D · KEY · need SEARCH_API_KEY in my .env.local to record live search fixtures` — note: only lanes A and D ever file KEY rows; B/C/E are keyless by design)* | open |
 
 ## CROSS-LANE NOTES
 

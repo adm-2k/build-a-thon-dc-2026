@@ -26,12 +26,14 @@ apparatus.
 ## Quickstart (per lane)
 
 ```bash
-# from the main checkout, once (orchestrator):
-git worktree add ../apparatus-<lane> lane/<lane>
+# worktrees are created once by A, AFTER the Phase 0 scaffold PR merges
+# (ORCHESTRATION §2.1):
+git worktree add ../apparatus-<lane> -b lane/<lane>
 
 # in your worktree, every session:
 pnpm install
 cp .env.example .env.local        # UI lanes need no keys — fixture mode works dry
+git push -u origin lane/<lane>    # once, so PRs and force-with-lease have an upstream
 pnpm dev -p 300X                  # unique port per lane, see ORCHESTRATION §2
 ```
 

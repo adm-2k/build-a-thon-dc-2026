@@ -1,0 +1,4 @@
+# The HANDOFF queue is append-only from many hands; union-merge keeps every
+# row if it ever conflicts (belt-and-braces — the real rule is that only A
+# commits it, from the single live copy in the main checkout).
+docs/HANDOFF.md merge=union

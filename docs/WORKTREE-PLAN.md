@@ -1,12 +1,13 @@
 # WORKTREE-PLAN.md — Parallel Build Lanes
 How to run multiple Claude Code sessions concurrently without collisions, using git worktrees. One repo, one `main`, one deployment; each lane is a worktree + branch + a running Claude Code instance with a scoped charter.
 
-> Amended 2026-08-28: the merge protocol below is superseded by the PR-gated protocol in `docs/ORCHESTRATION.md` §4 (branch/PR/rebase choreography). Lane definitions, ownership lists, and charters here remain authoritative.
+> Amended 2026-08-28: lane definitions and ownership lists here remain authoritative. Everything operational is superseded by `docs/ORCHESTRATION.md` — merge mechanics by §4, setup commands and timing by §2 (worktrees are created only **after** the Phase 0 scaffold PR merges), and the opening prompts by the §5 charter blocks (the charter sketch at the bottom of this file is historical). Where a lane note below conflicts with an ORCHESTRATION §8 ruling, the ruling wins.
 
-## Setup (A runs once, ~3 min)
+## Setup (A runs once, ~3 min — **after** the Phase 0 scaffold PR merges; see ORCHESTRATION §2.1–2.2 for the authoritative sequence and per-worktree steps)
 
 ```bash
-git clone <repo> apparatus && cd apparatus
+cd <the existing main checkout>   # do not re-clone; worktrees fork post-scaffold main
+git fetch origin && git switch main && git pull
 git worktree add ../apparatus-engine  -b lane/engine
 git worktree add ../apparatus-tracer  -b lane/tracer
 git worktree add ../apparatus-map     -b lane/map
@@ -19,7 +20,7 @@ Open one Claude Code session per worktree directory (VS Code windows or terminal
 ## Lanes
 
 **Lane A — Engine (merge first, blocks everyone).**
-Owns `lib/engine/*`, `lib/db.ts`, `lib/env.ts`, DDL execution, `app/api/*` route shells.
+Owns `lib/engine/*` (except `graph.ts` — Lane C), `lib/db.ts`, `lib/env.ts`, the DDL *text* (execution in the SQL editor is A-the-human's checkpoint, ORCHESTRATION §10), `app/api/*` route shells.
 Charter: implement schemas.ts exactly as SPEC §3; `dep.ts` ladder as SPEC §4; `llm.ts` with content-hash caching and the one-repair-pass rule. Definition of done: `POST /api/extract` returns valid `Claim[]` for a pasted paragraph, and `dep()` demonstrably falls live→cached→fixture when the network is disabled.
 
 **Lane B — Tracer UI (N°01).**
@@ -36,7 +37,7 @@ Charter: pick the 3 demo inputs (1 trending post for Tracer live, 2 contested qu
 
 **Lane E — Design integration + hub.**
 Owns `components/ui/*`, `app/page.tsx`, `app/begriffs/page.tsx`, `app/layout.tsx`.
-Charter: tokens.css in, fonts in, FolioHeader/Colophon/Compartment/Ticker/LacunaState built as dumb presentational components; hub catalogue with live counts; ticker with Realtime + polling fallback. Spend v0 credits here: prompt v0 with DESIGN-BRIEF excerpts + tokens.css to generate component shells, then hand the output to this lane's Claude Code session to tokenize and harden (v0 output must pass the CLAUDE.md hex-grep check before merge).
+Charter: tokens.css in, fonts in, FolioHeader/Colophon/Compartment/Ticker/LacunaState built as dumb presentational components; hub catalogue with live counts; ticker on 5s polling of `/api/events` (Realtime is a stretch goal only — ORCHESTRATION §8 T1). Spend v0 credits here: prompt v0 with DESIGN-BRIEF excerpts + tokens.css to generate component shells, then hand the output to this lane's Claude Code session to tokenize and harden (v0 output must pass the CLAUDE.md hex-grep check before merge).
 
 ## Merge protocol
 
@@ -46,4 +47,4 @@ Order: **A → E → B → C → D** for each lane's *first* merge (engine unblo
 
 ## Charters — how to prompt each session
 
-Open each Claude Code session with: "You are Lane <X> in docs/WORKTREE-PLAN.md. Read CLAUDE.md, SPEC.md, docs/DATA-CAVEATS.md, then your lane charter. Work only inside your ownership list. Before finishing, run the CLAUDE.md ship checklist and confirm your definition of done." Keep sessions long-lived; do not re-explain the project — the documents are the memory.
+Superseded: open each session with its verbatim charter block from `docs/ORCHESTRATION.md` §5 — those include the read list (this file *and* ORCHESTRATION), the ownership carve-outs, the PR/rebase protocol, and the ask escalation. Keep sessions long-lived; do not re-explain the project — the documents are the memory.

@@ -205,6 +205,12 @@ page or a live endpoint on 2026-08-28.
 - **Env-var changes apply only to new deployments**: every `DEP_*_MODE` flip
   costs a redeploy (~1–3 min, 1 concurrent build slot on Hobby). Rehearse the
   flip before finals.
+- **Branch pushes trigger preview builds by default** — at five lanes'
+  rebase/force-push cadence that overruns the 100-deploys/day cap and queues
+  production behind junk previews. Mitigation (mandatory, ships in the
+  scaffold): `vercel.json` Ignored Build Step
+  `{"ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]"}` so only
+  `main` ever builds.
 - Corrected allowances (Hobby, monthly): 1M function invocations, 4 Active-CPU
   hrs + 360 GB-hrs provisioned memory (not "100 GB-hrs"), 100GB transfer, 100
   deploys/day and 100 builds/rolling hour, 1 concurrent build. Fluid compute
