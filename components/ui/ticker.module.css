@@ -1,0 +1,45 @@
+/* Ticker — DESIGN-BRIEF §6.
+   Full-width strip, --rubric ground, --on-rubric mono uppercase 11px,
+   38s linear loop. Hub only, max one per page.
+   prefers-reduced-motion is honored globally (tokens.css). */
+.strip {
+  background: var(--rubric);
+  color: var(--on-rubric);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.track {
+  display: inline-flex;
+  animation: ticker-scroll 38s linear infinite;
+  will-change: transform;
+}
+
+.sequence {
+  display: inline-flex;
+  align-items: center;
+  padding: calc(var(--space-unit) * 1) 0;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: var(--text-label);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.item {
+  padding: 0 calc(var(--space-unit) * 3);
+}
+
+.separator {
+  opacity: 0.7;
+}
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}

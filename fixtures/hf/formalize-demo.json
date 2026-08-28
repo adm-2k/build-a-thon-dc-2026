@@ -1,0 +1,10 @@
+{
+  "claimId": "c5e4f3a6-7b8c-4d9e-8f0a-2b3c4d5e6f7a",
+  "premises": [
+    "Existing nuclear reactors already supply low-carbon electricity at low marginal cost",
+    "Retiring reactors before the grid is decarbonized raises total system emissions"
+  ],
+  "conclusion": "Governments should extend the lifetimes of existing nuclear reactors",
+  "operator": "obligates",
+  "formalization": "P1 ∧ P2 → O(C)"
+}

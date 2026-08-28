@@ -1,0 +1,110 @@
+{
+  "question": "Is nuclear power the fastest path to decarbonization?",
+  "clusters": [
+    {
+      "id": "d6f5a4b7-8c9d-4e0f-9a1b-3c4d5e6f7a8b",
+      "label": "Nuclear-first: speed and firmness",
+      "sources": [
+        {
+          "id": "0c1d2e3f-4a5b-4c6d-8e7f-6a7b8c9d0e1f",
+          "url": "https://www.iea.org/reports/nuclear-power-and-secure-energy-transitions",
+          "title": "Nuclear Power and Secure Energy Transitions",
+          "extractedText": "Lifetime extensions of existing reactors are among the cheapest sources of additional low-emissions electricity; net-zero pathways roughly double global nuclear capacity by 2050.",
+          "stanceClusterId": "d6f5a4b7-8c9d-4e0f-9a1b-3c4d5e6f7a8b"
+        },
+        {
+          "id": "1d2e3f4a-5b6c-4d7e-9f8a-7b8c9d0e1f2a",
+          "url": "https://world-nuclear.org/information-library/energy-and-the-environment/nuclear-energy-and-climate-change",
+          "title": "Nuclear Energy and Climate Change",
+          "extractedText": "Nuclear plants deliver large volumes of firm low-carbon power; France's 1974–1989 build-out remains the fastest national decarbonization of an electricity system on record.",
+          "stanceClusterId": "d6f5a4b7-8c9d-4e0f-9a1b-3c4d5e6f7a8b"
+        }
+      ],
+      "coreClaimIds": [
+        "8a1f0b2c-3d4e-4f5a-8b6c-7d8e9f0a1b2c",
+        "a3c2d1e4-5f6a-4b7c-8d9e-0f1a2b3c4d5e"
+      ],
+      "agreesWith": [],
+      "disputes": ["e7a6b5c8-9d0e-4f1a-8b2c-4d5e6f7a8b9c"],
+      "evidenceKind": "deployment history"
+    },
+    {
+      "id": "e7a6b5c8-9d0e-4f1a-8b2c-4d5e6f7a8b9c",
+      "label": "Cost-first: renewables at the margin",
+      "sources": [
+        {
+          "id": "2e3f4a5b-6c7d-4e8f-8a9b-8c9d0e1f2a3b",
+          "url": "https://www.lazard.com/research-insights/levelized-cost-of-energyplus/",
+          "title": "Levelized Cost of Energy+ Analysis",
+          "extractedText": "Unsubsidized utility-scale solar and onshore wind remain the cheapest new-build generation on a levelized basis, while new nuclear carries the highest LCOE range and the widest uncertainty band.",
+          "stanceClusterId": "e7a6b5c8-9d0e-4f1a-8b2c-4d5e6f7a8b9c"
+        },
+        {
+          "id": "3f4a5b6c-7d8e-4f9a-9b0c-9d0e1f2a3b4c",
+          "url": "https://ourworldindata.org/nuclear-energy",
+          "title": "Nuclear Energy — Our World in Data",
+          "extractedText": "Annual additions of solar and wind now far outpace nuclear, though nuclear's 1980s build rates remain unmatched per unit of firm capacity added.",
+          "stanceClusterId": "e7a6b5c8-9d0e-4f1a-8b2c-4d5e6f7a8b9c"
+        }
+      ],
+      "coreClaimIds": ["9b2e1c3d-4e5f-4a6b-9c7d-8e9f0a1b2c3d"],
+      "agreesWith": ["f8b7c6d9-0e1f-4a2b-9c3d-5e6f7a8b9c0d"],
+      "disputes": ["d6f5a4b7-8c9d-4e0f-9a1b-3c4d5e6f7a8b"],
+      "evidenceKind": "levelized cost estimates"
+    },
+    {
+      "id": "f8b7c6d9-0e1f-4a2b-9c3d-5e6f7a8b9c0d",
+      "label": "Whole-system accounting",
+      "sources": [
+        {
+          "id": "4a5b6c7d-8e9f-4a0b-8c1d-0e1f2a3b4c5d",
+          "url": "https://www.oecd-nea.org/jcms/pl_51110/projected-costs-of-generating-electricity-2020-edition",
+          "title": "Projected Costs of Generating Electricity 2020",
+          "extractedText": "Plant-level LCOE comparisons omit system costs; once balancing and network costs are included, the cheapest low-carbon system is not simply the one built from the cheapest individual plants.",
+          "stanceClusterId": "f8b7c6d9-0e1f-4a2b-9c3d-5e6f7a8b9c0d"
+        }
+      ],
+      "coreClaimIds": ["b4d3e2f5-6a7b-4c8d-9e0f-1a2b3c4d5e6f"],
+      "agreesWith": ["e7a6b5c8-9d0e-4f1a-8b2c-4d5e6f7a8b9c"],
+      "disputes": [],
+      "evidenceKind": "system cost modeling"
+    }
+  ],
+  "sources": [
+    {
+      "id": "0c1d2e3f-4a5b-4c6d-8e7f-6a7b8c9d0e1f",
+      "url": "https://www.iea.org/reports/nuclear-power-and-secure-energy-transitions",
+      "title": "Nuclear Power and Secure Energy Transitions",
+      "extractedText": "Lifetime extensions of existing reactors are among the cheapest sources of additional low-emissions electricity; net-zero pathways roughly double global nuclear capacity by 2050.",
+      "stanceClusterId": "d6f5a4b7-8c9d-4e0f-9a1b-3c4d5e6f7a8b"
+    },
+    {
+      "id": "1d2e3f4a-5b6c-4d7e-9f8a-7b8c9d0e1f2a",
+      "url": "https://world-nuclear.org/information-library/energy-and-the-environment/nuclear-energy-and-climate-change",
+      "title": "Nuclear Energy and Climate Change",
+      "extractedText": "Nuclear plants deliver large volumes of firm low-carbon power; France's 1974–1989 build-out remains the fastest national decarbonization of an electricity system on record.",
+      "stanceClusterId": "d6f5a4b7-8c9d-4e0f-9a1b-3c4d5e6f7a8b"
+    },
+    {
+      "id": "2e3f4a5b-6c7d-4e8f-8a9b-8c9d0e1f2a3b",
+      "url": "https://www.lazard.com/research-insights/levelized-cost-of-energyplus/",
+      "title": "Levelized Cost of Energy+ Analysis",
+      "extractedText": "Unsubsidized utility-scale solar and onshore wind remain the cheapest new-build generation on a levelized basis, while new nuclear carries the highest LCOE range and the widest uncertainty band.",
+      "stanceClusterId": "e7a6b5c8-9d0e-4f1a-8b2c-4d5e6f7a8b9c"
+    },
+    {
+      "id": "3f4a5b6c-7d8e-4f9a-9b0c-9d0e1f2a3b4c",
+      "url": "https://ourworldindata.org/nuclear-energy",
+      "title": "Nuclear Energy — Our World in Data",
+      "extractedText": "Annual additions of solar and wind now far outpace nuclear, though nuclear's 1980s build rates remain unmatched per unit of firm capacity added.",
+      "stanceClusterId": "e7a6b5c8-9d0e-4f1a-8b2c-4d5e6f7a8b9c"
+    },
+    {
+      "id": "4a5b6c7d-8e9f-4a0b-8c1d-0e1f2a3b4c5d",
+      "url": "https://www.oecd-nea.org/jcms/pl_51110/projected-costs-of-generating-electricity-2020-edition",
+      "title": "Projected Costs of Generating Electricity 2020",
+      "extractedText": "Plant-level LCOE comparisons omit system costs; once balancing and network costs are included, the cheapest low-carbon system is not simply the one built from the cheapest individual plants.",
+      "stanceClusterId": "f8b7c6d9-0e1f-4a2b-9c3d-5e6f7a8b9c0d"
+    }
+  ]
+}

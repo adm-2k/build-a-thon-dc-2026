@@ -1,0 +1,15 @@
+/* Event stamp rotation — DESIGN-BRIEF §6: optional 60s linear rotation.
+   Killed globally by prefers-reduced-motion (tokens.css). */
+.spin {
+  animation: stamp-rotate 60s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes stamp-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

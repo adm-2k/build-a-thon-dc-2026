@@ -1,0 +1,25 @@
+/* Apparatus margin — DESIGN-BRIEF §5.
+   Right column ~280–320px, mono voice, dense; separated by a 1px hairline,
+   never a shadow. Stacks below the text block on narrow viewports. */
+.margin {
+  flex: 0 0 300px;
+  min-width: 0;
+  border-left: 1px solid var(--hairline);
+  padding: calc(var(--space-unit) * 3) 0 calc(var(--space-unit) * 3)
+    calc(var(--space-unit) * 3);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 3);
+}
+
+@media (max-width: 899px) {
+  .margin {
+    flex: 1 1 100%;
+    border-left: none;
+    border-top: 1px solid var(--hairline);
+    padding-left: 0;
+  }
+}
