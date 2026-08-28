@@ -577,6 +577,7 @@ the entire point of this protocol.
 | T7 | SPEC §3's `Claim.confidence` has no column in the §3b `claims` DDL | `confidence` is transport-only — rendered, never persisted. The DDL stands unamended |
 | T8 | DESIGN-BRIEF §10 catalogues five provisional instruments (Ontology Builder … Gloss) | The real list is SPEC §0's three (Tracer N°01, Map N°02, Begriffs N°03); the hub renders **3** catalogue cells. §10's styling notes apply by analogy: N°01 graph rules → Map, N°05 reading view → Tracer |
 | T9 | DATA-CAVEATS §1 preference order (Brave → Tavily → Google) | Google is closed to new customers; Brave requires a card with ambiguous free-tier QPS. **Tavily primary, Brave fallback** (addendum §1) |
+| T10 | SPEC §1 pins `gemini-2.5-flash`, but that model is **closed to new users** — live-verified 404 on the project's actual key, 2026-08-28 | Model id moves to env: `GEMINI_MODEL=gemini-3.6-flash` (Google's stated migration target; verified 200, ~1s). Fallback string: `gemini-3.5-flash` (verified 200). **Never `gemini-3.7-flash`** — timed out at 30s on a default call. `llm.ts` reads `GEMINI_MODEL`; 3.x models take `thinkingLevel` ("low" for extract/judge), not `thinkingBudget` |
 
 ---
 
@@ -703,7 +704,9 @@ cytoscape@3.34.x, @supabase/supabase-js@^2.112.4 — NOT the 3.0.0-next
 dist-tag, @mozilla/readability@0.6.x, jsdom@30.x) plus ai@7, @ai-sdk/google@4,
 and server-only. LLM structured output uses generateText + output:
 Output.object({schema}) — generateObject is deprecated in ai@7 — and Gemini
-rejects z.union in response schemas, so keep every schema flat. Verify node
+rejects z.union in response schemas, so keep every schema flat. llm.ts reads
+the model id from GEMINI_MODEL (ruling §8 T10: gemini-2.5-flash is closed to
+new users; 3.x models take thinkingLevel "low", not thinkingBudget). Verify node
 --version satisfies jsdom's engines field (^22.22.2 || ^24.15.0 || >=26).
 Wire tokens.css as the first import
 in app/layout.tsx, add the DESIGN-BRIEF §4 Google Fonts link, set body

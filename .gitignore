@@ -1,0 +1,9 @@
+# secrets — never committed (ORCHESTRATION §1 distribution protocol)
+.env
+.env.*
+!.env.example
+
+# scaffold will extend this (node_modules, .next, etc.) — kept minimal until then
+node_modules/
+.next/
+.vercel

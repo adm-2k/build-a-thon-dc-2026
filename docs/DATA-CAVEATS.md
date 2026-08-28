@@ -99,14 +99,20 @@ page or a live endpoint on 2026-08-28.
   maps 1:1 onto `{url,title,snippet}`. Key visible on the dashboard ~5 min
   after signup at https://app.tavily.com.
 
-### §3 Gemini — pin holds; the upgrade plan and the SDK pattern changed
+### §3 Gemini — the pin is DEAD for this project; the upgrade plan and the SDK pattern changed
 
-- **`gemini-2.5-flash` is still current and is now the cheapest flash tier**
-  ($0.30/$2.50 per M vs $0.75/$3.75 for the newest `gemini-3.7-flash`), with
-  free-tier availability confirmed. Keep the pin; keep `gemini-3.7-flash` as a
-  one-string fallback in `llm.ts` (note: 3.x uses `thinkingLevel`, 2.5 uses
-  `thinkingBudget`). `gemini-2.0-flash*` is **shut down** — reject any copied
-  snippet that references it.
+- **`gemini-2.5-flash` is closed to new users** — live-verified on the
+  project's actual key 2026-08-28: `generateContent` returns 404 "no longer
+  available to new users" even though the model still appears in the models
+  list (listing ≠ usable). The pin moves to env — ORCHESTRATION §8 T10:
+  **`GEMINI_MODEL=gemini-3.6-flash`** (Google's stated migration target;
+  verified 200 on this key, ~1s with 2-token output). Fallback:
+  `gemini-3.5-flash` (verified 200). **Not `gemini-3.7-flash`** — timed out
+  at 30s on a default call from this key. 3.x models use `thinkingLevel`
+  ("low" for extract/judge — thinking is on by default and burned ~95
+  thought-tokens on a 2-token answer in the verification call).
+  `gemini-2.0-flash*` is **shut down** — reject any copied snippet that
+  references it.
 - **The "switch to GCP-billed project (credits)" escape hatch above is dead:**
   since March 2026, GCP free-trial/welcome credits are explicitly excluded
   from the Gemini API. The real path is *better*: "Set up billing" on the
