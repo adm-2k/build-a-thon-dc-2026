@@ -1,0 +1,188 @@
+/* ============================================================================
+   APPARATUS — design tokens
+   Two plates on white stock: no black anywhere in the system.
+   Light mode = "Proof" (inks on white stock). Dark mode = "Negative" (the film
+   negative: stock and ink swap; the plates lighten to hold contrast).
+
+   Theming contract (three viewer states):
+     1. bare :root            -> complete Proof palette (the default)
+     2. prefers-color-scheme  -> Negative, unless the user explicitly chose light
+     3. [data-theme="dark"]   -> Negative, when the user explicitly chose dark
+   Style components through these tokens ONLY. Never hardcode a color in an app.
+   ========================================================================== */
+
+:root {
+  /* -- surfaces ---------------------------------------------------------- */
+  --stock: #FFFFFF;        /* the paper */
+  --stock-2: #F3F5F9;      /* 5% screen of ink — panels, raised cells */
+  --hairline: #D9DDE7;     /* 15% screen — every rule and border, 1px */
+
+  /* -- the two inks ------------------------------------------------------ */
+  --ink: #14204A;          /* Prussian blue. ALL text. 15.7:1 on stock */
+  --ink-2: #565F7C;        /* 60% screen — secondary text. 6.3:1 */
+  --rubric: #D6220C;       /* red plate — instruction, emphasis, live state. 5.1:1 */
+  --blue: #2438CC;         /* blue plate — links, selection, structure. 8.3:1 */
+  --overprint: #3B1355;    /* where the plates overlap — graphics only, never text */
+
+  /* -- text on filled plates --------------------------------------------- */
+  --on-rubric: #FFFFFF;    /* 5.1:1 on rubric */
+  --on-blue: #FFFFFF;      /* 8.3:1 on blue */
+
+  /* -- washes (10–14% tints for highlights/selections; never for text) ---- */
+  --wash-blue: rgba(36, 56, 204, 0.10);
+  --wash-red: rgba(214, 34, 12, 0.08);
+
+  /* -- status (functional exception to the duotone; ALWAYS icon + label) -- */
+  --ok: #0E6E45;           /* 6.3:1 */
+  --warn: #8A5A00;         /* 5.9:1 */
+  --err: #D6220C;          /* = rubric; errors are rubricated */
+  --info: #2438CC;         /* = blue plate */
+
+  /* -- charts: categorical, FIXED order, max 5 then fold into "Other" ----- */
+  /* validated: OKLCH band, chroma, CVD ΔE, normal-vision floor, 3:1 contrast */
+  --chart-1: #2438CC;      /* blue plate */
+  --chart-2: #D6220C;      /* red plate */
+  --chart-3: #5F71E8;      /* blue tint */
+  --chart-4: #E4602F;      /* red tint */
+  --chart-5: #8A3BD4;      /* overprint violet */
+
+  /* -- charts: sequential (screens of the blue plate, light -> dark) ------ */
+  --seq-1: #98A4F0;
+  --seq-2: #6E7FEA;
+  --seq-3: #4557DC;
+  --seq-4: #2438CC;
+  --seq-5: #14204A;
+
+  /* -- charts: diverging (red plate <-> neutral <-> blue plate) ----------- */
+  --div-neg: #D6220C;
+  --div-mid: #C9CDD9;
+  --div-pos: #2438CC;
+
+  /* -- misregistration accent (display type only, one moment per page) ---- */
+  --misreg: rgba(36, 56, 204, 0.35);
+
+  /* -- type -------------------------------------------------------------- */
+  --font-arch: 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  --font-serif: 'STIX Two Text', Georgia, 'Times New Roman', serif;
+
+  /* -- scale: reading sizes OR poster sizes, nothing between --------------- */
+  --text-label: 11px;      /* uppercase mono micro-labels, letter-spacing .09em */
+  --text-mono: 12.5px;     /* inline code, metadata */
+  --text-ui: 14px;
+  --text-body: 15px;
+  --text-read: 17px;       /* serif long-form */
+  --text-lead: 19px;
+  --display-1: 32px;
+  --display-2: 56px;
+  --display-3: 96px;
+  --display-4: 160px;
+
+  /* -- structure ----------------------------------------------------------- */
+  --space-unit: 8px;       /* spacing scale: 4/8/12/16/24/32/48/64/96 */
+  --radius: 0px;           /* compartments are square */
+  --radius-input: 2px;     /* the one permitted rounding, inputs and pills */
+  --page-max: 1440px;
+
+  /* -- motion -------------------------------------------------------------- */
+  --dur: 150ms;            /* 120–180ms band */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* State 2: OS prefers dark and the user has not explicitly chosen light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --stock: #0C1023;
+    --stock-2: #151B34;
+    --hairline: #2B3254;
+    --ink: #EDEFF6;        /* 16.4:1 on stock */
+    --ink-2: #9AA1BD;      /* 7.4:1 */
+    --rubric: #FF5C40;     /* 6.2:1 */
+    --blue: #7C8CFF;       /* 6.3:1 */
+    --overprint: #A98BE0;
+    --on-rubric: #0C1023;  /* 6.2:1 on rubric */
+    --on-blue: #0C1023;    /* 6.3:1 on blue */
+    --wash-blue: rgba(124, 140, 255, 0.16);
+    --wash-red: rgba(255, 92, 64, 0.12);
+    --ok: #3FCB8B;
+    --warn: #E0A62E;
+    --err: #FF5C40;
+    --info: #7C8CFF;
+    --chart-1: #5E6FF0;
+    --chart-2: #F04A2C;
+    --chart-3: #4257DE;
+    --chart-4: #D96A50;
+    --chart-5: #9E6FE0;
+    --seq-1: #33408F;
+    --seq-2: #4B5CD9;
+    --seq-3: #7280F2;
+    --seq-4: #9AA6F8;
+    --seq-5: #C9D0FB;
+    --div-neg: #F04A2C;
+    --div-mid: #3A4160;
+    --div-pos: #5E6FF0;
+    --misreg: rgba(124, 140, 255, 0.40);
+  }
+}
+
+/* State 3: the user explicitly chose dark. Must mirror state 2 exactly. */
+:root[data-theme="dark"] {
+  --stock: #0C1023;
+  --stock-2: #151B34;
+  --hairline: #2B3254;
+  --ink: #EDEFF6;
+  --ink-2: #9AA1BD;
+  --rubric: #FF5C40;
+  --blue: #7C8CFF;
+  --overprint: #A98BE0;
+  --on-rubric: #0C1023;
+  --on-blue: #0C1023;
+  --wash-blue: rgba(124, 140, 255, 0.16);
+  --wash-red: rgba(255, 92, 64, 0.12);
+  --ok: #3FCB8B;
+  --warn: #E0A62E;
+  --err: #FF5C40;
+  --info: #7C8CFF;
+  --chart-1: #5E6FF0;
+  --chart-2: #F04A2C;
+  --chart-3: #4257DE;
+  --chart-4: #D96A50;
+  --chart-5: #9E6FE0;
+  --seq-1: #33408F;
+  --seq-2: #4B5CD9;
+  --seq-3: #7280F2;
+  --seq-4: #9AA6F8;
+  --seq-5: #C9D0FB;
+  --div-neg: #F04A2C;
+  --div-mid: #3A4160;
+  --div-pos: #5E6FF0;
+  --misreg: rgba(124, 140, 255, 0.40);
+}
+
+/* -- base ------------------------------------------------------------------ */
+body {
+  background: var(--stock);        /* never leave the body transparent */
+  color: var(--ink);
+  font-family: var(--font-arch);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--blue);
+  color: var(--on-blue);
+}
+
+:focus-visible {
+  outline: 2px solid var(--rubric);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
