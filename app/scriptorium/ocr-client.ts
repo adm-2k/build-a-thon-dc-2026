@@ -8,12 +8,21 @@
  * — was a local LACUNA(lane-tracer)-marked mirror before that, verified
  * identical to the real schema on landing).
  *
- * // LACUNA(lane-tracer): POST /api/ocr and POST /api/documents do not exist
- * // on origin/main yet (Lane A charter items 3 and 4). Both calls below
- * // degrade any non-2xx / malformed response to the same LACUNA shape the
- * // rest of the suite uses (respond.ts's `{ data: null, lacuna }` envelope),
- * // so the page already behaves correctly the moment those routes land —
- * // nothing here should need to change except deleting this note.
+ * POST /api/ocr landed 2026-08-30 (#14, hfVision ladder) — live-verified
+ * from this worktree: keyless/fixture mode with no fixtures/ocr/ yet (Lane D
+ * in flight) answers 200 with a typed lacuna envelope
+ * (`{"dep":"ocr","reason":"no response at any rung (fixtures/ocr/default.json
+ * missing)"}`), which requestTranscription() below renders as the ocrError
+ * state, never a hang. No client-side changes were needed once the route
+ * shipped — the request/response shapes matched what this file already sent.
+ *
+ * // LACUNA(lane-tracer): POST /api/documents does not exist on origin/main
+ * // yet (Lane A's current item). saveToRecord() below degrades any non-2xx
+ * // / malformed response to the same LACUNA shape the rest of the suite
+ * // uses, so "Fix in the record" already behaves correctly the moment that
+ * // route lands — the coordinator asked for a live-verify of the full
+ * // Scriptorium -> save -> Tracer hand-off once it does; nothing here
+ * // should need to change except deleting this note.
  */
 import { OcrResultSchema, type OcrResult } from "@/lib/engine/schemas";
 import type { LanguageOption, ScriptOption } from "./registry";
@@ -77,10 +86,8 @@ export async function requestTranscription(input: {
   const json = await parseJson(res);
 
   if (res.status === 404) {
-    return {
-      ok: false,
-      reason: "POST /api/ocr is not wired into this build yet (Lane A, in progress).",
-    };
+    // Defensive fallback only — POST /api/ocr has been live since #14.
+    return { ok: false, reason: "The OCR route could not be found (HTTP 404)." };
   }
   if (!res.ok) {
     const message =
