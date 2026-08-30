@@ -3,17 +3,17 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { OntologyGraph } from "@/components/OntologyGraph";
 import { entitiesToElements, ENTITY_KIND_ORDER } from "@/lib/engine/graph";
-import { EntitySchema, type DepMode, type Entity } from "@/lib/engine/schemas";
+import {
+  DocumentSchema,
+  EntitySchema,
+  type DepMode,
+  type Document,
+  type Entity,
+} from "@/lib/engine/schemas";
 import { ApparatusMargin, MarginSection } from "@/components/ui/ApparatusMargin";
 import { LacunaState, CollatingState } from "@/components/ui/LacunaState";
 import { MicroLabel } from "@/components/ui/MicroLabel";
 import { ProvenanceChip } from "@/components/ui/ProvenanceChip";
-
-/**
- * A GET /api/documents row — same tolerant local shape as app/map/MapClient.tsx
- * (no schemas.ts type exists for it yet; Lane A charter item 4).
- */
-type CorpusDoc = { id: string; title?: string; sourceUrl?: string };
 
 type CorpusStatus = "loading" | "unavailable" | "empty" | "ready";
 
@@ -25,24 +25,34 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
 }
 
-function coerceCorpusDocs(json: unknown): CorpusDoc[] {
+/** unknown (GET /api/documents response `data`) -> Document[], zod-parsed against schemas.ts. */
+function coerceDocuments(json: unknown): Document[] {
   const raw = Array.isArray(json)
     ? json
     : isRecord(json) && Array.isArray(json.data)
       ? json.data
       : null;
   if (!raw) return [];
-  const out: CorpusDoc[] = [];
+  const out: Document[] = [];
   for (const item of raw) {
-    if (isRecord(item) && typeof item.id === "string") {
-      out.push({
-        id: item.id,
-        title: typeof item.title === "string" ? item.title : undefined,
-        sourceUrl: typeof item.sourceUrl === "string" ? item.sourceUrl : undefined,
-      });
-    }
+    const parsed = DocumentSchema.safeParse(item);
+    if (parsed.success) out.push(parsed.data);
   }
   return out;
+}
+
+/**
+ * Document (SPEC §3) has no `title` — live-verified once GET /api/documents
+ * landed (#17): it carries `text`, `sourceUrl`, `tool`, `createdAt`. A raw
+ * sourceUrl for a Scriptorium page is "scriptorium:<sha>" (SPEC §3b) —
+ * meaningless in the "Sources charted" margin — so prefer a text snippet.
+ */
+function labelFor(doc: Document): string {
+  if (doc.text && doc.text.trim()) {
+    const oneLine = doc.text.replace(/\s+/g, " ").trim();
+    return oneLine.length > 72 ? `${oneLine.slice(0, 71)}…` : oneLine;
+  }
+  return doc.sourceUrl ?? doc.id;
 }
 
 /**
@@ -119,7 +129,7 @@ const KIND_LABEL: Record<Entity["kind"], string> = {
 
 export function NetworkClient() {
   const [corpusStatus, setCorpusStatus] = useState<CorpusStatus>("loading");
-  const [documents, setDocuments] = useState<CorpusDoc[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [charting, setCharting] = useState(false);
   const [hasCharted, setHasCharted] = useState(false);
   const [entities, setEntities] = useState<Entity[]>([]);
@@ -134,15 +144,15 @@ export function NetworkClient() {
       })
       .then((json) => {
         if (cancelled) return;
-        const docs = coerceCorpusDocs(json);
+        const docs = coerceDocuments(json);
         setDocuments(docs);
         setCorpusStatus(docs.length > 0 ? "ready" : "empty");
       })
       .catch(() => {
-        // GET /api/documents isn't wired yet (Lane A charter item 4) or the
-        // corpus is unreachable — an empty/unreachable corpus is the same
-        // LACUNA-pointing-at-Scriptorium state, never a crash (CLAUDE.md
-        // eng rule 5).
+        // GET /api/documents is wired (#17) but network/server failure is
+        // still possible — an unreachable corpus gets the same
+        // LACUNA-pointing-at-Scriptorium state as a genuinely empty one,
+        // never a crash (CLAUDE.md eng rule 5).
         if (!cancelled) setCorpusStatus("unavailable");
       });
     return () => {
@@ -157,7 +167,7 @@ export function NetworkClient() {
 
     const results = await Promise.all(
       documents.map(async (doc) => {
-        const title = doc.title ?? doc.sourceUrl ?? doc.id;
+        const title = labelFor(doc);
         try {
           const res = await fetch("/api/ner", {
             method: "POST",

@@ -3,19 +3,11 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { OntologyGraph } from "@/components/OntologyGraph";
 import { stanceClustersToElements } from "@/lib/engine/graph";
-import type { StanceCluster, DepMode } from "@/lib/engine/schemas";
+import { DocumentSchema, type Document, type StanceCluster, type DepMode } from "@/lib/engine/schemas";
 import { ApparatusMargin, MarginSection } from "@/components/ui/ApparatusMargin";
 import { LacunaState, CollatingState } from "@/components/ui/LacunaState";
 import { MicroLabel } from "@/components/ui/MicroLabel";
 import { ProvenanceChip } from "@/components/ui/ProvenanceChip";
-
-/**
- * A GET /api/documents row. Not a SPEC §3 type (no zod schema exists yet —
- * Lane A charter item 4 builds that route) so this stays a minimal, tolerant
- * local shape: any object with a string `id` is treated as a corpus document,
- * everything else is presentation-only. Never widened into schemas.ts.
- */
-type CorpusDoc = { id: string; title?: string; sourceUrl?: string };
 
 type CorpusStatus = "loading" | "unavailable" | "empty" | "ready";
 
@@ -27,24 +19,34 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
 }
 
-function coerceCorpusDocs(json: unknown): CorpusDoc[] {
+/** unknown (GET /api/documents response `data`) -> Document[], zod-parsed against schemas.ts. */
+function coerceDocuments(json: unknown): Document[] {
   const raw = Array.isArray(json)
     ? json
     : isRecord(json) && Array.isArray(json.data)
       ? json.data
       : null;
   if (!raw) return [];
-  const out: CorpusDoc[] = [];
+  const out: Document[] = [];
   for (const item of raw) {
-    if (isRecord(item) && typeof item.id === "string") {
-      out.push({
-        id: item.id,
-        title: typeof item.title === "string" ? item.title : undefined,
-        sourceUrl: typeof item.sourceUrl === "string" ? item.sourceUrl : undefined,
-      });
-    }
+    const parsed = DocumentSchema.safeParse(item);
+    if (parsed.success) out.push(parsed.data);
   }
   return out;
+}
+
+/**
+ * Document (SPEC §3) has no `title` — a live-verified finding once
+ * GET /api/documents landed (#17): it carries `text`, `sourceUrl`, `tool`,
+ * `createdAt`. A raw sourceUrl for a Scriptorium page is "scriptorium:<sha>"
+ * (SPEC §3b) — meaningless in a picker — so prefer a one-line text snippet.
+ */
+function labelFor(doc: Document): string {
+  if (doc.text && doc.text.trim()) {
+    const oneLine = doc.text.replace(/\s+/g, " ").trim();
+    return oneLine.length > 72 ? `${oneLine.slice(0, 71)}…` : oneLine;
+  }
+  return doc.sourceUrl ?? doc.id;
 }
 
 /** HH:MM (UTC) from an ISO timestamp, for the "COLLATED HH:MM" chip. */
@@ -110,7 +112,7 @@ const dimMono: CSSProperties = {
 export function MapClient() {
   const [question, setQuestion] = useState("");
   const [corpusStatus, setCorpusStatus] = useState<CorpusStatus>("loading");
-  const [documents, setDocuments] = useState<CorpusDoc[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{
@@ -129,13 +131,13 @@ export function MapClient() {
       })
       .then((json) => {
         if (cancelled) return;
-        const docs = coerceCorpusDocs(json);
+        const docs = coerceDocuments(json);
         setDocuments(docs);
         setCorpusStatus(docs.length > 0 ? "ready" : "empty");
       })
       .catch(() => {
-        // GET /api/documents isn't wired yet (Lane A charter item 4) or the
-        // corpus is unreachable — this instrument falls back to web search
+        // GET /api/documents is wired (#17) but network/server failure is
+        // still possible — this instrument falls back to web search
         // (SPEC §5), never a crash (CLAUDE.md eng rule 5).
         if (!cancelled) setCorpusStatus("unavailable");
       });
@@ -257,7 +259,7 @@ export function MapClient() {
                     checked={selectedIds.includes(doc.id)}
                     onChange={() => toggleDoc(doc.id)}
                   />
-                  {doc.title ?? doc.sourceUrl ?? doc.id}
+                  {labelFor(doc)}
                 </label>
               ))}
             </div>
