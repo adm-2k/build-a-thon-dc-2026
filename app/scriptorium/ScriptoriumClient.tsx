@@ -353,8 +353,12 @@ export function ScriptoriumClient() {
         </section>
       ) : null}
 
-      {/* -- Actions ------------------------------------------------------ */}
-      {image ? (
+      {/* -- Actions ------------------------------------------------------
+           Only rendered before a transcription exists — DESIGN-BRIEF rule 4
+           caps the view at one rubricated primary action. Once ocrResult
+           exists, "Fix in the record" (in the Transcription section below)
+           takes over as the sole primary; "Re-transcribe" there covers redo. */}
+      {image && !ocrResult ? (
         <section aria-label="Transcribe">
           <div style={{ display: "flex", alignItems: "center", gap: "calc(var(--space-unit) * 2)" }}>
             {phase === "collating" ? (
@@ -411,15 +415,20 @@ export function ScriptoriumClient() {
                 {phase !== "saved" ? (
                   <button
                     type="button"
-                    style={phase === "saving" ? disabledButton : primaryButton}
-                    disabled={phase === "saving"}
+                    style={phase === "saving" || phase === "collating" ? disabledButton : primaryButton}
+                    disabled={phase === "saving" || phase === "collating"}
                     onClick={() => void onFixInRecord()}
                   >
                     Fix in the record
                   </button>
                 ) : null}
               </div>
-              {phase === "saving" ? <CollatingState /> : null}
+              {phase === "collating" || phase === "saving" ? (
+                <div style={{ marginTop: "var(--space-unit)" }}>
+                  <CollatingState />
+                </div>
+              ) : null}
+              {ocrError ? <p style={{ ...errorLine, marginTop: "var(--space-unit)" }}>{ocrError}</p> : null}
               {saveError ? <p style={{ ...errorLine, marginTop: "var(--space-unit)" }}>{saveError}</p> : null}
               {phase === "saved" ? (
                 <p style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-mono)", color: "var(--ink-2)", marginTop: "var(--space-unit)" }}>
