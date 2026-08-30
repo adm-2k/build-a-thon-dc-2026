@@ -115,6 +115,7 @@ const transcriptionTextarea: CSSProperties = {
 
 export function ScriptoriumClient() {
   const [image, setImage] = useState<DownscaledImage | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [script, setScript] = useState<ScriptOption>("print");
   const [language, setLanguage] = useState<LanguageOption>("en");
@@ -145,11 +146,14 @@ export function ScriptoriumClient() {
       setFileError("That file is not an image. Choose a JPEG or PNG page scan.");
       return;
     }
+    setImageLoading(true);
     try {
       const downscaled = await downscaleToJpeg(file);
       setImage(downscaled);
     } catch {
       setFileError("Could not read that image in this browser.");
+    } finally {
+      setImageLoading(false);
     }
   }
 
@@ -235,12 +239,14 @@ export function ScriptoriumClient() {
           style={{
             border: "1px solid var(--hairline)",
             borderRadius: "var(--radius)",
-            padding: image ? 0 : "calc(var(--space-unit) * 6) var(--space-unit)",
-            textAlign: image ? undefined : "center",
+            padding: image && !imageLoading ? 0 : "calc(var(--space-unit) * 6) var(--space-unit)",
+            textAlign: image && !imageLoading ? undefined : "center",
             background: "var(--stock-2)",
           }}
         >
-          {image ? (
+          {imageLoading ? (
+            <CollatingState />
+          ) : image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={image.dataUrl}
