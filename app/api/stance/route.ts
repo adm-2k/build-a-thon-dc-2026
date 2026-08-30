@@ -12,8 +12,10 @@
  * Either way, ONE Gemini clustering call runs over the assembled pool.
  */
 import { getDocumentById } from "@/lib/db";
+import { fetchAndExtract } from "@/lib/engine/fetch";
 import { gemini } from "@/lib/engine/llm";
-import { normalizeQuery, notWiredLive, recordEvent, runDep } from "../_lib/adapter";
+import { tavilySearch } from "@/lib/engine/search";
+import { normalizeQuery, recordEvent, runDep } from "../_lib/adapter";
 import {
   badRequest,
   guard,
@@ -93,7 +95,8 @@ export const POST = guard(async (req) => {
   } else {
     /* v1 web-search pool */
     /* 1 — search (n=8) */
-    const search = await runDep("search", normalizeQuery(question), notWiredLive("search"));
+    const query = normalizeQuery(question);
+    const search = await runDep("search", query, (signal) => tavilySearch(query, signal));
     if (!search.ok) return lacuna(search.lacuna.dep, search.lacuna.reason);
     const results = coerceSearchResults(search.data).slice(0, SOURCE_CAP);
     if (results.length === 0) {
@@ -103,7 +106,7 @@ export const POST = guard(async (req) => {
     /* 2 — fetch + extract in parallel; fall back to the search snippet */
     const pool = await Promise.all(
       results.map(async (r) => {
-        const fetched = await runDep("fetch", r.url, notWiredLive("fetch"));
+        const fetched = await runDep("fetch", r.url, (signal) => fetchAndExtract(r.url, signal));
         const page = fetched.ok ? coercePage(fetched.data, r.url) : null;
         const text = page?.text ?? r.snippet ?? "";
         return { url: r.url, title: page?.title ?? r.title, text };

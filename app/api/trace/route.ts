@@ -8,14 +8,17 @@
  *     an empty extraction is a RESULT, never a retry loop)
  *   - judge ladder bottoms out         → "weakly_sourced" (sources found
  *     but unassessed)
- * The live search/fetch clients are Lane A's (routes may not fetch —
- * CLAUDE.md eng rule 2); until they land, the ladder descends past live.
+ * Live search (Tavily) and fetch+extract (readability/jsdom) clients live
+ * in lib/engine/ (CLAUDE.md eng rule 2: routes may not fetch directly) —
+ * this route only supplies them as the dep ladder's liveFn.
  */
 import type { DepMode, SourceVerdict } from "@/lib/engine/schemas";
 import { ClaimSchema, SourceVerdictSchema } from "@/lib/engine/schemas";
+import { fetchAndExtract } from "@/lib/engine/fetch";
 import { gemini } from "@/lib/engine/llm";
+import { tavilySearch } from "@/lib/engine/search";
 import { z } from "zod";
-import { normalizeQuery, notWiredLive, recordEvent, runDep } from "../_lib/adapter";
+import { normalizeQuery, recordEvent, runDep } from "../_lib/adapter";
 import {
   badRequest,
   guard,
@@ -71,7 +74,7 @@ export const POST = guard(async (req) => {
 
   /* 1 — search */
   const query = normalizeQuery(claim.text);
-  const search = await runDep("search", query, notWiredLive("search"));
+  const search = await runDep("search", query, (signal) => tavilySearch(query, signal));
   if (!search.ok) {
     return ok(
       verdictState(
@@ -94,7 +97,7 @@ export const POST = guard(async (req) => {
   const viaByUrl = new Map<string, DepMode>();
   const pages: ExtractedPage[] = [];
   for (const r of results) {
-    const fetched = await runDep("fetch", r.url, notWiredLive("fetch"));
+    const fetched = await runDep("fetch", r.url, (signal) => fetchAndExtract(r.url, signal));
     if (!fetched.ok) continue;
     const page = coercePage(fetched.data, r.url);
     if (page === null) continue;
