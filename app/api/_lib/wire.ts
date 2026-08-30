@@ -21,6 +21,7 @@ import {
   OcrResultSchema,
   SourceVerdictSchema,
   StanceClusterSchema,
+  TermSnapshotSchema,
   TickerEventSchema,
   type Claim,
   type DepMode,
@@ -30,6 +31,7 @@ import {
   type OcrResult,
   type SourceVerdict,
   type StanceCluster,
+  type TermSnapshot,
   type TickerEvent,
 } from "@/lib/engine/schemas";
 import { isRecord } from "./adapter";
@@ -386,6 +388,38 @@ export function coerceDocuments(rows: unknown): Document[] {
   for (const row of rows) {
     const doc = coerceDocument(row);
     if (doc) out.push(doc);
+  }
+  return out;
+}
+
+/**
+ * unknown `term_snapshots` DB row → TermSnapshot, or null when off-contract.
+ * The DDL nests `relFreq`/`senses` under a `data` JSONB column
+ * (scripts/seed-fixtures.ts's --seed column mapping: `{term, year_bucket,
+ * data: {relFreq?, senses}, provenance}`) — this flattens it back onto the
+ * §3 shape, camelCase on the wire.
+ */
+export function coerceTermSnapshot(row: unknown): TermSnapshot | null {
+  if (!isRecord(row)) return null;
+  const data = isRecord(row.data) ? row.data : {};
+  const candidate = {
+    term: row.term,
+    yearBucket: row.year_bucket,
+    relFreq: data.relFreq ?? undefined,
+    senses: data.senses ?? [],
+    provenance: row.provenance,
+  };
+  const parsed = TermSnapshotSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : null;
+}
+
+/** unknown `term_snapshots` DB rows[] → TermSnapshot[]; malformed rows drop. */
+export function coerceTermSnapshots(rows: unknown): TermSnapshot[] {
+  if (!Array.isArray(rows)) return [];
+  const out: TermSnapshot[] = [];
+  for (const row of rows) {
+    const snap = coerceTermSnapshot(row);
+    if (snap) out.push(snap);
   }
   return out;
 }
