@@ -60,6 +60,13 @@ const RawEnvSchema = z.object({
     emptyToUndef,
     z.string().min(1).default("Qwen/Qwen3-4B-Instruct-2507:nscale"),
   ),
+  // OCR vision model pin (SPEC v2 §7 / DATA-CAVEATS addendum 2 §10) —
+  // overridable per request; swapping the default is a string change here,
+  // never a code change.
+  HF_OCR_MODEL: z.preprocess(
+    emptyToUndef,
+    z.string().min(1).default("Qwen/Qwen3-VL-30B-A3B-Instruct"),
+  ),
 
   // Web search — Tavily primary, Brave fallback (ORCHESTRATION §8 T9)
   SEARCH_API_KEY: optionalSecret,
@@ -68,13 +75,16 @@ const RawEnvSchema = z.object({
     z.enum(["tavily", "brave"]).default("tavily"),
   ),
 
-  // Dependency ladder modes (all six are part of the contract, incl. gemini)
+  // Dependency ladder modes (all eight are part of the contract, incl.
+  // gemini and the SPEC v2 ocr/ner rungs — SPEC §4).
   DEP_SEARCH_MODE: modeVar,
   DEP_FETCH_MODE: modeVar,
   DEP_GEMINI_MODE: modeVar,
   DEP_NGRAM_MODE: modeVar,
   DEP_WIKTIONARY_MODE: modeVar,
   DEP_HF_MODE: modeVar,
+  DEP_OCR_MODE: modeVar,
+  DEP_NER_MODE: modeVar,
 });
 
 type RawEnv = z.infer<typeof RawEnvSchema>;
@@ -92,6 +102,11 @@ const CREDENTIAL_FOR: Record<
   fetch: null, // plain HTTP — keyless; explicit DEP_FETCH_MODE=live in prod
   ngram: null, // harvest-time only; never live in deployed code
   wiktionary: null, // harvest-time only; never live in deployed code
+  // ocr's primary rung is the HF router vision call (SPEC v2 §4); Gemini
+  // vision is the fallback rung INSIDE live, not a separate mode gate.
+  ocr: "HF_TOKEN",
+  // ner's primary rung is Gemini structured output (SPEC v2 §4).
+  ner: "GOOGLE_GENERATIVE_AI_API_KEY",
 };
 
 const MODE_VAR_FOR: Record<DepName, keyof RawEnv> = {
@@ -101,6 +116,8 @@ const MODE_VAR_FOR: Record<DepName, keyof RawEnv> = {
   hf: "DEP_HF_MODE",
   ngram: "DEP_NGRAM_MODE",
   wiktionary: "DEP_WIKTIONARY_MODE",
+  ocr: "DEP_OCR_MODE",
+  ner: "DEP_NER_MODE",
 };
 
 export interface Env {
@@ -110,6 +127,7 @@ export interface Env {
   SUPABASE_SERVICE_ROLE_KEY?: string;
   HF_TOKEN?: string;
   HF_FORMALIZER_MODEL: string;
+  HF_OCR_MODEL: string;
   SEARCH_API_KEY?: string;
   SEARCH_PROVIDER: "tavily" | "brave";
   /** Resolved (never undefined) mode per dependency, per the T5 ruling. */
@@ -177,6 +195,7 @@ function loadEnv(): Env {
     SUPABASE_SERVICE_ROLE_KEY: raw.SUPABASE_SERVICE_ROLE_KEY,
     HF_TOKEN: raw.HF_TOKEN,
     HF_FORMALIZER_MODEL: raw.HF_FORMALIZER_MODEL,
+    HF_OCR_MODEL: raw.HF_OCR_MODEL,
     SEARCH_API_KEY: raw.SEARCH_API_KEY,
     SEARCH_PROVIDER: raw.SEARCH_PROVIDER,
     modes,

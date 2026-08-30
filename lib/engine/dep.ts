@@ -32,6 +32,11 @@ export const DEP_TIMEOUT_MS: Record<DepName, number> = {
   hf: 8_000, // DATA-CAVEATS §4
   ngram: 10_000, // harvest-time only (§5)
   wiktionary: 10_000, // harvest-time only (§6)
+  // SPEC v2 §4 / ORCHESTRATION §8 T13: a live OCR call on the pinned VLM
+  // took 36s for a dense page — never share timeouts across deps with
+  // different physics. 50s stays inside the 60s route budget.
+  ocr: 50_000,
+  ner: 30_000, // SPEC v2 §4: Gemini structured output, thinkingLevel "low"
 };
 
 /* ── shared helpers (also used by llm.ts) ───────────────────────────────── */

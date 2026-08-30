@@ -135,6 +135,42 @@ export const TickerEventSchema = z.object({
 });
 export type TickerEvent = z.infer<typeof TickerEventSchema>;
 
+/* ────────────────────────────────────────────────────────────────────────
+ * OcrResult — Scriptorium transcription output (SPEC v2 §3, N°00)
+ *
+ * `model` is the EXACT HF (or Gemini-vision fallback) model id used for
+ * this call — provenance in the scholarly sense (SPEC §4): the OCR
+ * ProvenanceChip names the model, never just "LIVE".
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export const OcrResultSchema = z.object({
+  documentId: z.string(),
+  text: z.string(),
+  model: z.string(),
+  script: z.enum(["print", "handwriting"]),
+  language: z.enum(["en", "de", "mixed"]),
+  pageNote: z.string().optional(),
+});
+export type OcrResult = z.infer<typeof OcrResultSchema>;
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Entity — NER output (SPEC v2 §3, N°04)
+ *
+ * `kind` is a CLOSED vocabulary (DATA-CAVEATS addendum 2 §11) — the NER
+ * prompt must instruct historical-text conventions and forbid inventing
+ * kinds. EntityEdge is NOT a stored/transport type: co-occurrence edges are
+ * derived in lib/engine/graph.ts (Lane C) from Entity[] grouped by document.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export const EntitySchema = z.object({
+  id: z.string(),
+  documentId: z.string(),
+  name: z.string(),
+  kind: z.enum(["person", "place", "org", "work", "concept"]),
+  mentions: z.number().int(),
+});
+export type Entity = z.infer<typeof EntitySchema>;
+
 /* ════════════════════════════════════════════════════════════════════════
  * Engine transport types (SPEC §4 dependency ladder) — NOT §3 data
  * contracts, but inter-lane interfaces all the same: routes return them,
@@ -142,7 +178,10 @@ export type TickerEvent = z.infer<typeof TickerEventSchema>;
  * redeclares them (CLAUDE.md engineering rule 1).
  * ════════════════════════════════════════════════════════════════════════ */
 
-/** The registered external dependencies (SPEC §4, DATA-CAVEATS §§1–6). */
+/**
+ * The registered external dependencies (SPEC §4, DATA-CAVEATS §§1–6, plus
+ * addendum 2 §§10–11's two SPEC v2 rungs — "ocr" and "ner").
+ */
 export const DEP_NAMES = [
   "search",
   "fetch",
@@ -150,6 +189,8 @@ export const DEP_NAMES = [
   "hf",
   "ngram",
   "wiktionary",
+  "ocr",
+  "ner",
 ] as const;
 export const DepNameSchema = z.enum(DEP_NAMES);
 export type DepName = z.infer<typeof DepNameSchema>;
