@@ -1,12 +1,14 @@
 import { TermSnapshotSchema, type TermSnapshot } from "@/lib/engine/schemas";
 
-// LACUNA(lane-design): GET /api/terms (Lane A charter item 8, T4) does not
-// exist on origin/main yet. Until it does, this reads the harvest fixtures
+// GET /api/terms (Lane A charter item 8) is live on origin/main and is the
+// primary source (see BegriffsClient's fetchLiveTerm) — never lib/db.ts
+// directly (ORCHESTRATION T4). This module is now the fallback rung only:
+// BegriffsClient uses it when the route itself is unreachable or answers
+// with something structurally invalid, reading the same harvest fixtures
 // DATA-CAVEATS §5/§6 already commits as the floor "so a fresh DB can be
-// seeded" — never lib/db.ts (ORCHESTRATION T4: Lane E never imports it
-// directly). Swap BegriffsClient's live-fetch-first path takes priority the
-// moment the route ships; delete this file's role as a fallback then, or
-// keep it as the last rung if a term-not-yet-harvested case remains.
+// seeded." A genuine empty result FROM the route is never overridden by
+// this fallback — that would hide an honest LACUNA behind stale fixture
+// data.
 import erfahrungNgram from "@/fixtures/ngram/erfahrung.json";
 import experienceNgram from "@/fixtures/ngram/experience.json";
 import fordismusNgram from "@/fixtures/ngram/fordismus.json";

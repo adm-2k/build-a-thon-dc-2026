@@ -23,35 +23,41 @@ import { SEED_TERMS, fixtureSnapshotsFor, type SeedTerm } from "./terms-data";
 type Resolution = "century" | "decade";
 
 /**
- * Attempt the live engine route first (Lane A charter item 8, T4 — the
- * route does not exist on origin/main yet, so this always resolves null
- * today). The moment it ships, this takes priority with zero client change.
+ * GET /api/terms is live on origin/main (Lane A charter item 8) — it is now
+ * the primary source. `ok: false` means the route itself is unreachable or
+ * answered with something structurally invalid; the caller falls back to
+ * the committed harvest fixtures for that case only. `ok: true` with an
+ * empty `rows` is a genuine, honest result (DATA-CAVEATS: empty is a state,
+ * not an error) — it is never overridden by the fixture fallback.
  */
+type LiveOutcome =
+  | { ok: true; rows: TermSnapshot[]; mode: DepMode }
+  | { ok: false };
+
 async function fetchLiveTerm(
   term: string,
   signal: AbortSignal,
-): Promise<{ rows: TermSnapshot[]; mode: DepMode } | null> {
+): Promise<LiveOutcome> {
   try {
     const res = await fetch(`/api/terms?term=${encodeURIComponent(term)}`, {
       signal,
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { ok: false };
     const body: unknown = await res.json().catch(() => null);
-    if (!body || typeof body !== "object") return null;
+    if (!body || typeof body !== "object") return { ok: false };
     const raw = "data" in body ? (body as { data: unknown }).data : body;
-    if (!Array.isArray(raw)) return null;
+    if (!Array.isArray(raw)) return { ok: false };
     const rows: TermSnapshot[] = [];
     for (const row of raw) {
       const parsed = TermSnapshotSchema.safeParse(row);
       if (parsed.success) rows.push(parsed.data);
     }
-    if (rows.length === 0) return null;
     const modeParsed = DepModeSchema.safeParse(
       (body as Record<string, unknown>).mode,
     );
-    return { rows, mode: modeParsed.success ? modeParsed.data : "live" };
+    return { ok: true, rows, mode: modeParsed.success ? modeParsed.data : "cached" };
   } catch {
-    return null;
+    return { ok: false };
   }
 }
 
@@ -67,16 +73,23 @@ function isSeedTerm(value: string): value is SeedTerm {
 export function BegriffsClient() {
   const [term, setTerm] = useState<SeedTerm>(SEED_TERMS[0]);
   const [resolution, setResolution] = useState<Resolution>("century");
-  const [live, setLive] = useState<
-    { rows: TermSnapshot[]; mode: DepMode } | null | "loading"
-  >("loading");
+  // Keyed by term, so switching between two already-fetched terms shows
+  // cached results instantly instead of a loading flash. `undefined` means
+  // "no fetch has resolved for this term yet" — that IS the loading state,
+  // derived rather than written synchronously from the effect body (the
+  // fix for react-hooks/set-state-in-effect: the only setState call below
+  // happens inside the fetch's .then(), never synchronously in the effect).
+  const [resultByTerm, setResultByTerm] = useState<
+    Partial<Record<SeedTerm, LiveOutcome>>
+  >({});
 
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
-    setLive("loading");
     fetchLiveTerm(term, controller.signal).then((result) => {
-      if (!cancelled) setLive(result);
+      if (!cancelled) {
+        setResultByTerm((prev) => ({ ...prev, [term]: result }));
+      }
     });
     return () => {
       cancelled = true;
@@ -86,9 +99,13 @@ export function BegriffsClient() {
 
   const fallbackRows = useMemo(() => fixtureSnapshotsFor(term), [term]);
 
-  const isLoading = live === "loading";
-  const rows: TermSnapshot[] = isLoading ? [] : (live?.rows ?? fallbackRows);
-  const mode: DepMode = !isLoading && live ? live.mode : "cached";
+  const outcome = resultByTerm[term];
+  const isLoading = outcome === undefined;
+  const rows = useMemo<TermSnapshot[]>(() => {
+    if (!outcome) return [];
+    return outcome.ok ? outcome.rows : fallbackRows;
+  }, [outcome, fallbackRows]);
+  const mode: DepMode = outcome && outcome.ok ? outcome.mode : "cached";
 
   const freqRows = useMemo(
     () =>
@@ -181,7 +198,7 @@ export function BegriffsClient() {
                 gap: "calc(var(--space-unit) * 2)",
               }}
             >
-              <ProvenanceChip mode={isLoading ? "cached" : mode} />
+              <ProvenanceChip mode={mode} />
               <div className={styles.toggle} role="group" aria-label="Sampling resolution">
                 <button
                   type="button"
