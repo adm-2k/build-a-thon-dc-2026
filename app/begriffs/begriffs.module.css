@@ -1,0 +1,191 @@
+/* Begriffs (N°03) — DESIGN-BRIEF §6/§9. All values from tokens.css. */
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 1);
+}
+
+.pickerButton {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: var(--text-label);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--stock);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-input);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1.5);
+  cursor: pointer;
+  transition:
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+
+.pickerButton:hover {
+  background: var(--stock-2);
+}
+
+.pickerButton[aria-pressed="true"] {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--stock-2);
+}
+
+.pickerButton:focus-visible {
+  outline: 2px solid var(--rubric);
+  outline-offset: 2px;
+}
+
+.toggle {
+  display: inline-flex;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-input);
+  overflow: hidden;
+}
+
+.toggleButton {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: var(--text-label);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--stock);
+  border: none;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.toggleButton + .toggleButton {
+  border-left: 1px solid var(--hairline);
+}
+
+.toggleButton:hover {
+  background: var(--stock-2);
+}
+
+.toggleButton[aria-pressed="true"] {
+  /* --stock is the ground color of whichever theme is active, which is
+     exactly the correct contrast color on an --ink fill in both Proof and
+     Negative (the duotone swap keeps this pairing legible either way). */
+  color: var(--stock);
+  background: var(--ink);
+}
+
+.toggleButton:focus-visible {
+  outline: 2px solid var(--rubric);
+  outline-offset: 2px;
+}
+
+/* Frequency bars — sequential palette (magnitude), DESIGN-BRIEF §9. */
+.chartRow {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+}
+
+.chartLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  width: 4.5ch;
+  flex: none;
+  text-align: right;
+}
+
+.chartTrack {
+  flex: 1 1 auto;
+  height: 8px;
+  background: var(--stock-2);
+  position: relative;
+  min-width: 0;
+}
+
+.chartFill {
+  height: 100%;
+  background: var(--seq-4);
+}
+
+.chartValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  width: 9ch;
+  flex: none;
+}
+
+/* Table view for the chart (DESIGN-BRIEF §6 tables, §9 ship checklist 6). */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: var(--text-label);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  text-align: left;
+  padding: calc(var(--space-unit) * 1) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.table th.num,
+.table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table td {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  color: var(--ink);
+  padding: calc(var(--space-unit) * 1) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* Etymology chain — the Manuscript voice for reading content. */
+.senseItem {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 0.5);
+  padding: calc(var(--space-unit) * 2) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.senseItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.senseGloss {
+  font-family: var(--font-serif);
+  font-size: var(--text-read);
+  line-height: 1.5;
+  color: var(--ink);
+  margin: 0;
+}
+
+.senseMeta {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.senseNote {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  color: var(--ink-2);
+  margin: 0;
+  max-width: 65ch;
+}
