@@ -15,6 +15,7 @@
 import { z } from "zod";
 import {
   ClaimSchema,
+  DocumentSchema,
   LogicalFormSchema,
   OcrResultSchema,
   SourceVerdictSchema,
@@ -22,6 +23,7 @@ import {
   TickerEventSchema,
   type Claim,
   type DepMode,
+  type Document,
   type LogicalForm,
   type OcrResult,
   type SourceVerdict,
@@ -55,6 +57,28 @@ export const OcrRequestSchema = z.object({
   model: z.string().min(1).optional(),
   script: OcrResultSchema.shape.script.optional(),
   language: OcrResultSchema.shape.language.optional(),
+});
+
+/**
+ * POST /api/documents body (SPEC v2 §5) — Scriptorium's "Fix in the record"
+ * (also the eventual home for Tracer's paste box, SPEC §0). `ocr` is
+ * present only when the save originated from a transcription; its
+ * `model`/`script`/`language` feed the dep_cache OCR-metadata write-through
+ * (SPEC §3b) keyed on the sha256 embedded in `sourceUrl` as
+ * "scriptorium:<sha256>" — never re-derived, since that IS the image
+ * content hash SPEC §3b calls for.
+ */
+export const DocumentCreateRequestSchema = z.object({
+  text: z.string().min(1, "transcription text is required"),
+  sourceUrl: z.string().min(1).optional(),
+  tool: z.string().min(1).optional(),
+  ocr: z
+    .object({
+      model: z.string().min(1),
+      script: OcrResultSchema.shape.script,
+      language: OcrResultSchema.shape.language,
+    })
+    .optional(),
 });
 
 /** POST /api/events body — the server stamps `at`, so the client never sends it. */
@@ -276,6 +300,34 @@ export function coerceOcrResult(
   };
   const parsed = OcrResultSchema.safeParse(candidate);
   return parsed.success ? parsed.data : null;
+}
+
+/**
+ * unknown `documents` DB row (snake_case) → Document (camelCase), or null
+ * when off-contract. Null DB columns normalize to undefined (schema-optional).
+ */
+export function coerceDocument(row: unknown): Document | null {
+  if (!isRecord(row)) return null;
+  const candidate = {
+    id: row.id,
+    text: row.raw_text ?? undefined,
+    sourceUrl: row.source_url ?? undefined,
+    tool: row.tool ?? undefined,
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+  };
+  const parsed = DocumentSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : null;
+}
+
+/** unknown `documents` DB rows[] → Document[]; malformed rows drop. */
+export function coerceDocuments(rows: unknown): Document[] {
+  if (!Array.isArray(rows)) return [];
+  const out: Document[] = [];
+  for (const row of rows) {
+    const doc = coerceDocument(row);
+    if (doc) out.push(doc);
+  }
+  return out;
 }
 
 /** unknown DB rows → TickerEvent[]; malformed rows drop, `at` normalizes to ISO. */

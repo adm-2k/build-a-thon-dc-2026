@@ -125,10 +125,18 @@ export type TermSnapshot = z.infer<typeof TermSnapshotSchema>;
 /* ────────────────────────────────────────────────────────────────────────
  * TickerEvent — hub marquee row (SPEC §3)
  * `at` is the timestamptz serialized as an ISO-8601 string on the wire.
+ *
+ * `instrument` is extended here from v1's ("01"|"02"|"03") to the full
+ * five-instrument roster ("00".."04"): SPEC v2 §5 already names the new
+ * verbs "N°00 · PAGE FIXED IN THE RECORD" and "N°04 · ENTITIES REGISTERED",
+ * and ruling T11 fixed the hub at five catalogue cells — the v1 enum simply
+ * never got updated to match. Flagged as a CROSS-LANE note; not a product
+ * change, just closing a gap SPEC v2 already implies (Lane A is
+ * schemas.ts's sole committer — ORCHESTRATION §2.3).
  * ──────────────────────────────────────────────────────────────────────── */
 
 export const TickerEventSchema = z.object({
-  instrument: z.enum(["01", "02", "03"]),
+  instrument: z.enum(["00", "01", "02", "03", "04"]),
   verb: z.string(),
   count: z.number().int().optional(),
   at: z.string(),
@@ -170,6 +178,27 @@ export const EntitySchema = z.object({
   mentions: z.number().int(),
 });
 export type Entity = z.infer<typeof EntitySchema>;
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Document — corpus row read-model (SPEC v2 §0/§2/§5)
+ *
+ * SPEC names `GET /api/documents` / `POST /api/documents` repeatedly (§2's
+ * repository layout, §5's Scriptorium/Tracer/Map/Prosopon pipelines) but
+ * never gives the shape a §3 type name — this fills that gap so the route
+ * has something to validate against instead of returning `unknown` (CLAUDE.md
+ * eng rule 1: every shape from schemas.ts). 1:1 with the six-table DDL's
+ * `documents` row (SPEC §3b), camelCase on the wire like everything else;
+ * `text`/`sourceUrl`/`tool` are optional because the DB columns are nullable.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export const DocumentSchema = z.object({
+  id: z.string(),
+  text: z.string().optional(),
+  sourceUrl: z.string().optional(),
+  tool: z.string().optional(),
+  createdAt: z.string(),
+});
+export type Document = z.infer<typeof DocumentSchema>;
 
 /* ════════════════════════════════════════════════════════════════════════
  * Engine transport types (SPEC §4 dependency ladder) — NOT §3 data
