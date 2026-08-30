@@ -4,25 +4,19 @@
  * eng rule 2 governs server-to-external calls inside lib/engine/; a page
  * calling its own Next.js API route is the normal client/server split).
  *
- * OcrResult now comes from lib/engine/schemas.ts (Lane A merged it 2026-08-30
- * — was a local LACUNA(lane-tracer)-marked mirror before that, verified
- * identical to the real schema on landing).
- *
- * POST /api/ocr landed 2026-08-30 (#14, hfVision ladder) — live-verified
- * from this worktree: keyless/fixture mode with no fixtures/ocr/ yet (Lane D
- * in flight) answers 200 with a typed lacuna envelope
- * (`{"dep":"ocr","reason":"no response at any rung (fixtures/ocr/default.json
- * missing)"}`), which requestTranscription() below renders as the ocrError
- * state, never a hang. No client-side changes were needed once the route
- * shipped — the request/response shapes matched what this file already sent.
- *
- * // LACUNA(lane-tracer): POST /api/documents does not exist on origin/main
- * // yet (Lane A's current item). saveToRecord() below degrades any non-2xx
- * // / malformed response to the same LACUNA shape the rest of the suite
- * // uses, so "Fix in the record" already behaves correctly the moment that
- * // route lands — the coordinator asked for a live-verify of the full
- * // Scriptorium -> save -> Tracer hand-off once it does; nothing here
- * // should need to change except deleting this note.
+ * Both routes are live on main: POST /api/ocr (#14, hfVision ladder; #19
+ * added the `fixture` slug param requestTranscription() sends) and
+ * GET+POST /api/documents (#17). OcrResult imports from
+ * lib/engine/schemas.ts rather than a local mirror. Every response follows
+ * the app-wide envelope (`{ data, mode?, fetchedAt? }` on success,
+ * `{ data: null, lacuna: { dep, reason } }` at the ladder's bottom); both
+ * requestTranscription() and saveToRecord() below degrade any non-2xx or
+ * malformed response to that same shape, so a route regression or a
+ * keyless/no-Supabase environment renders an honest ocrError/saveError
+ * state, never a hang. Live-verified 2026-08-30: keyless POST /api/ocr with
+ * no fixture serves fixtures/ocr/default.json's real text; POST
+ * /api/documents keyless answers a typed `db` lacuna ("Supabase is not
+ * configured..."), matching CLAUDE.md eng rule 5.
  */
 import { OcrResultSchema, type OcrResult } from "@/lib/engine/schemas";
 import type { LanguageOption, ScriptOption } from "./registry";
@@ -149,10 +143,8 @@ export async function saveToRecord(input: {
   const json = await parseJson(res);
 
   if (res.status === 404) {
-    return {
-      ok: false,
-      reason: "POST /api/documents is not wired into this build yet (Lane A, in progress).",
-    };
+    // Defensive fallback only — POST /api/documents has been live since #17.
+    return { ok: false, reason: "The corpus route could not be found (HTTP 404)." };
   }
   if (!res.ok) {
     return { ok: false, reason: `The corpus route answered HTTP ${res.status}.` };
