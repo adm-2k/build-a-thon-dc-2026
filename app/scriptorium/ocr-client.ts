@@ -65,12 +65,18 @@ async function parseJson(res: Response): Promise<unknown> {
   }
 }
 
-/** POST /api/ocr {imageDataUrl, model?, script?, language?} → OcrResult (SPEC §5). */
+/**
+ * POST /api/ocr {imageDataUrl, model?, script?, language?, fixture?} →
+ * OcrResult (SPEC §5). `fixture` (added #19, 2026-08-30) names one of the
+ * real corpus fixtures under fixtures/ocr/ to serve when the ladder falls
+ * to its floor — DEMO_FIXTURES in ./registry lists the choices.
+ */
 export async function requestTranscription(input: {
   imageDataUrl: string;
   model: string;
   script: ScriptOption;
   language: LanguageOption;
+  fixture?: string;
 }): Promise<OcrOutcome> {
   let res: Response;
   try {

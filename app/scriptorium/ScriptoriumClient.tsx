@@ -14,6 +14,7 @@ import { downscaleToJpeg, type DownscaledImage } from "./downscale";
 import { requestTranscription, saveToRecord, type OcrResult } from "./ocr-client";
 import {
   DEFAULT_OCR_MODEL,
+  DEMO_FIXTURES,
   LANGUAGE_OPTIONS,
   OCR_MODEL_REGISTRY,
   SCRIPT_OPTIONS,
@@ -121,6 +122,7 @@ export function ScriptoriumClient() {
   const [language, setLanguage] = useState<LanguageOption>("en");
   const [model, setModel] = useState<string>(DEFAULT_OCR_MODEL);
   const [customModel, setCustomModel] = useState("");
+  const [demoFixture, setDemoFixture] = useState("");
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
@@ -175,6 +177,7 @@ export function ScriptoriumClient() {
       model: activeModel,
       script,
       language,
+      fixture: demoFixture || undefined,
     });
     if (!outcome.ok) {
       setOcrError(outcome.reason);
@@ -361,6 +364,26 @@ export function ScriptoriumClient() {
                 style={{ ...inputStyle, width: "100%", marginTop: "calc(var(--space-unit) * 0.75)" }}
               />
             </div>
+            <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+              <MicroLabel as="label" htmlFor="demo-fixture-select" tone="dim" style={{ display: "block", marginBottom: "calc(var(--space-unit) * 0.5)" }}>
+                Demo fixture
+              </MicroLabel>
+              <select
+                id="demo-fixture-select"
+                value={demoFixture}
+                onChange={(e) => setDemoFixture(e.target.value)}
+                style={{ ...inputStyle, width: "100%" }}
+              >
+                {DEMO_FIXTURES.map((f) => (
+                  <option key={f.slug} value={f.slug}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-mono)", color: "var(--ink-2)", margin: "calc(var(--space-unit) * 0.75) 0 0" }}>
+                When the ladder falls to its floor (no live key, or a miss), serve this corpus page instead of the uploaded image.
+              </p>
+            </div>
           </div>
         </section>
       ) : null}
@@ -396,8 +419,11 @@ export function ScriptoriumClient() {
           ) : (
             <div>
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "var(--space-unit)" }}>
-                <ProvenanceChip mode={ocrMode} collatedAt={ocrFetchedAt ? formatHHMM(ocrFetchedAt) : undefined} />
-                <MicroLabel tone="dim">{ocrResult.model}</MicroLabel>
+                <ProvenanceChip
+                  mode={ocrMode}
+                  model={ocrResult.model}
+                  collatedAt={ocrFetchedAt ? formatHHMM(ocrFetchedAt) : undefined}
+                />
                 <MicroLabel tone="dim">{ocrResult.script} · {ocrResult.language}</MicroLabel>
               </div>
               {ocrResult.pageNote ? (
