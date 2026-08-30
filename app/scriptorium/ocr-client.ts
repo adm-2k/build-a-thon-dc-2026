@@ -4,14 +4,10 @@
  * eng rule 2 governs server-to-external calls inside lib/engine/; a page
  * calling its own Next.js API route is the normal client/server split).
  *
- * // LACUNA(lane-tracer): OcrResult is SPEC §3 v2 but not yet landed in
- * // lib/engine/schemas.ts (Lane A charter item 1, ORCHESTRATION §5). The
- * // type below mirrors SPEC §3 verbatim so replacing it with
- * // `import type { OcrResult } from "@/lib/engine/schemas"` is a one-line
- * // change once Lane A merges. Never widen this shape to dodge a mismatch —
- * // if Lane A's real type differs, that is a HANDOFF cross-lane note, not a
- * // silent local fix.
- * //
+ * OcrResult now comes from lib/engine/schemas.ts (Lane A merged it 2026-08-30
+ * — was a local LACUNA(lane-tracer)-marked mirror before that, verified
+ * identical to the real schema on landing).
+ *
  * // LACUNA(lane-tracer): POST /api/ocr and POST /api/documents do not exist
  * // on origin/main yet (Lane A charter items 3 and 4). Both calls below
  * // degrade any non-2xx / malformed response to the same LACUNA shape the
@@ -19,16 +15,10 @@
  * // so the page already behaves correctly the moment those routes land —
  * // nothing here should need to change except deleting this note.
  */
+import { OcrResultSchema, type OcrResult } from "@/lib/engine/schemas";
 import type { LanguageOption, ScriptOption } from "./registry";
 
-export type OcrResult = {
-  documentId: string;
-  text: string;
-  model: string;
-  script: "print" | "handwriting";
-  language: "en" | "de" | "mixed";
-  pageNote?: string;
-};
+export type { OcrResult };
 
 export type DepMode = "live" | "cached" | "fixture";
 
@@ -50,20 +40,12 @@ function readString(value: unknown): string | undefined {
 
 function coerceOcrResult(data: unknown, fallbackDocumentId: string): OcrResult | null {
   if (!isRecord(data)) return null;
-  const text = readString(data.text);
-  const model = readString(data.model);
-  if (!text || !model) return null;
-  const script: OcrResult["script"] = data.script === "handwriting" ? "handwriting" : "print";
-  const language: OcrResult["language"] =
-    data.language === "de" ? "de" : data.language === "mixed" ? "mixed" : "en";
-  return {
-    documentId: readString(data.documentId) ?? fallbackDocumentId,
-    text,
-    model,
-    script,
-    language,
-    pageNote: readString(data.pageNote),
-  };
+  // The server should already stamp documentId, but fall back to a
+  // client-generated one so a still-in-progress /api/ocr (missing that
+  // field) doesn't fail validation solely on it.
+  const withFallbackId = { documentId: fallbackDocumentId, ...data };
+  const parsed = OcrResultSchema.safeParse(withFallbackId);
+  return parsed.success ? parsed.data : null;
 }
 
 async function parseJson(res: Response): Promise<unknown> {
