@@ -2,12 +2,8 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { OntologyGraph } from "@/components/OntologyGraph";
-import {
-  entitiesToElements,
-  ENTITY_KIND_ORDER,
-  type Entity,
-} from "@/lib/engine/graph";
-import type { DepMode } from "@/lib/engine/schemas";
+import { entitiesToElements, ENTITY_KIND_ORDER } from "@/lib/engine/graph";
+import { EntitySchema, type DepMode, type Entity } from "@/lib/engine/schemas";
 import { ApparatusMargin, MarginSection } from "@/components/ui/ApparatusMargin";
 import { LacunaState, CollatingState } from "@/components/ui/LacunaState";
 import { MicroLabel } from "@/components/ui/MicroLabel";
@@ -50,30 +46,24 @@ function coerceCorpusDocs(json: unknown): CorpusDoc[] {
 }
 
 /**
- * Tolerant Entity[] coercion — no schemas.ts type to parse against yet (the
- * LACUNA(lane-map) noted in lib/engine/graph.ts), so this drops malformed
- * rows structurally rather than widening a real contract. documentId is
- * server-stamped here from the request in case a fixture/route omits it.
+ * unknown (POST /api/ner response `data`) -> Entity[], zod-parsed against
+ * the real schemas.ts EntitySchema (CLAUDE.md eng rule 1 — no more local
+ * duck-typing now that schemas v2 has landed). id/documentId are stamped
+ * from the request before parsing in case a fixture/route omits either;
+ * a row that still fails validation is dropped, never widened.
  */
 function coerceEntities(data: unknown, documentId: string): Entity[] {
   if (!Array.isArray(data)) return [];
   const out: Entity[] = [];
   for (const item of data) {
-    if (
-      isRecord(item) &&
-      typeof item.name === "string" &&
-      typeof item.kind === "string" &&
-      (ENTITY_KIND_ORDER as readonly string[]).includes(item.kind) &&
-      typeof item.mentions === "number"
-    ) {
-      out.push({
-        id: typeof item.id === "string" ? item.id : `${documentId}:${item.name}`,
-        documentId: typeof item.documentId === "string" ? item.documentId : documentId,
-        name: item.name,
-        kind: item.kind as Entity["kind"],
-        mentions: item.mentions,
-      });
-    }
+    if (!isRecord(item) || typeof item.name !== "string") continue;
+    const stamped = {
+      ...item,
+      id: typeof item.id === "string" && item.id.length > 0 ? item.id : `${documentId}:${item.name}`,
+      documentId: typeof item.documentId === "string" ? item.documentId : documentId,
+    };
+    const parsed = EntitySchema.safeParse(stamped);
+    if (parsed.success) out.push(parsed.data);
   }
   return out;
 }
