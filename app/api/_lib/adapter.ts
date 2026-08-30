@@ -78,12 +78,15 @@ function lacunaReason(result: unknown): string {
  * Run one dependency through the SPEC §4 ladder and normalize the outcome.
  * dep() may signal a total miss by throwing or by returning a typed Lacuna
  * value; either way the route receives a state, never an exception
- * (CLAUDE.md eng rule 5).
+ * (CLAUDE.md eng rule 5). liveFn takes the AbortSignal dep.ts's own
+ * per-dependency timeout drives (DEP_TIMEOUT_MS) — lib/engine/search.ts and
+ * lib/engine/fetch.ts's live clients both use it to bound their fetch()
+ * calls.
  */
 export async function runDep(
   name: DepName,
   key: string,
-  liveFn: () => Promise<unknown>,
+  liveFn: (signal: AbortSignal) => Promise<unknown>,
 ): Promise<DepOutcome> {
   try {
     const result: unknown = await dep(name, key, liveFn);
@@ -127,21 +130,6 @@ export function llmOutcome<T>(
     return { ok: true, data: result.data, mode: result.mode, fetchedAt: result.fetchedAt };
   }
   return { ok: false, lacuna: { dep: result.dep, reason: result.reason } };
-}
-
-/**
- * Scaffold placeholder for deps whose live clients belong in lib/engine/
- * (search, fetch): routes may not fetch, so until Lane A wires the liveFn the
- * ladder simply falls live → cached → fixture. In fixture mode this function
- * is never invoked.
- */
-export function notWiredLive(depName: DepName): () => Promise<never> {
-  return () =>
-    Promise.reject(
-      new Error(
-        `LACUNA(routes): live ${depName} client not wired at scaffold time — implement the liveFn in lib/engine/ (routes may not fetch)`,
-      ),
-    );
 }
 
 /* ------------------------------------------------------------ event helpers */
