@@ -24,7 +24,9 @@ import process from "node:process";
 import { z } from "zod";
 import {
   ClaimSchema,
+  EntitySchema,
   LogicalFormSchema,
+  OcrResultSchema,
   SourceVerdictSchema,
   StanceClusterSchema,
   TermSnapshotSchema,
@@ -75,6 +77,12 @@ const FormalizeWire = LogicalFormSchema.omit({ claimId: true });
 
 const TermSnapshotArray = z.array(TermSnapshotSchema);
 
+/** documentId is assigned at /api/documents insert time — the committed
+ * corpus fixture is the pre-insert wire shape (matches the ClaimWire/
+ * FormalizeWire omit-the-id-fields precedent above). */
+const OcrResultWire = OcrResultSchema.omit({ documentId: true });
+const EntityWireArray = z.array(EntitySchema.omit({ id: true, documentId: true }));
+
 /* ── registry: fixtures/<dir>/<file matching pattern> → schema ──────────── */
 
 interface RegistryEntry {
@@ -96,6 +104,8 @@ const REGISTRY: RegistryEntry[] = [
   { dir: "hf", pattern: /^default/, schema: FormalizeWire, shape: "LogicalForm sans claimId" },
   { dir: "ngram", pattern: /.*/, schema: TermSnapshotArray, shape: "TermSnapshot[]" },
   { dir: "wiktionary", pattern: /.*/, schema: TermSnapshotSchema, shape: "TermSnapshot" },
+  { dir: "ocr", pattern: /.*/, schema: OcrResultWire, shape: "OcrResult sans documentId" },
+  { dir: "ner", pattern: /.*/, schema: EntityWireArray, shape: "Entity[] sans id/documentId" },
 ];
 
 function entryFor(relPath: string): RegistryEntry | undefined {
@@ -153,16 +163,109 @@ async function check(): Promise<number> {
 
 /* ── entry point ────────────────────────────────────────────────────────── */
 
+/**
+ * `node scripts/seed-fixtures.ts --seed` — loads the Begriffs harvest
+ * (fixtures/ngram/ + fixtures/wiktionary/) into `term_snapshots` via a
+ * direct @supabase/supabase-js client (lib/db.ts is server-only and cannot
+ * be imported from a script — see the file header). Mirrors lib/db.ts's
+ * `upsertTermSnapshots` column mapping exactly: `{term, year_bucket, data,
+ * provenance}`, `data` = `{relFreq?, senses}`, upsert `onConflict:
+ * "term,year_bucket"` (idempotent — safe to re-run).
+ *
+ * Deliberately NOT in scope here: pre-warming `dep_cache` for the demo
+ * search/fetch/gemini fixtures. Those live-verified query/answer pairs need
+ * the exact content-hash key `lib/engine/llm.ts`/`dep.ts` (Lane A) computes
+ * for the identical prompt at runtime; duplicating that hash function here
+ * would violate CLAUDE.md eng rule 1 territory (own it or don't touch it).
+ * Warming dep_cache for the live demo is ORCHESTRATION §7/§10's "demo-query
+ * prerendering" checkpoint — the human orchestrator running the actual
+ * queries against the deployed app, not a seed script.
+ */
+async function seed(): Promise<number> {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    console.error(
+      "FAIL  SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set — seed mode needs live " +
+        "credentials (run with `node --env-file=.env.local scripts/seed-fixtures.ts --seed`)",
+    );
+    return 1;
+  }
+
+  const { createClient } = await import("@supabase/supabase-js");
+  const client = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+
+  const root = path.join(process.cwd(), "fixtures");
+  type Row = { term: string; year_bucket: number; data: unknown; provenance: string };
+  const rows: Row[] = [];
+  let failures = 0;
+
+  const readJson = async (rel: string): Promise<unknown> =>
+    JSON.parse(await fs.readFile(path.join(root, rel), "utf8"));
+
+  const ngramFiles = await fs.readdir(path.join(root, "ngram")).catch(() => [] as string[]);
+  for (const file of ngramFiles.filter((f) => f.endsWith(".json"))) {
+    const parsed = TermSnapshotArray.safeParse(await readJson(path.join("ngram", file)));
+    if (!parsed.success) {
+      console.error(`FAIL  fixtures/ngram/${file} failed TermSnapshot[] validation — skipped`);
+      failures++;
+      continue;
+    }
+    for (const snap of parsed.data) {
+      rows.push({
+        term: snap.term,
+        year_bucket: snap.yearBucket,
+        data: { relFreq: snap.relFreq, senses: snap.senses },
+        provenance: snap.provenance,
+      });
+    }
+    console.log(`PASS  fixtures/ngram/${file} — ${parsed.data.length} bucket row(s) queued`);
+  }
+
+  const wiktionaryFiles = await fs.readdir(path.join(root, "wiktionary")).catch(() => [] as string[]);
+  for (const file of wiktionaryFiles.filter((f) => f.endsWith(".json"))) {
+    const parsed = TermSnapshotSchema.safeParse(await readJson(path.join("wiktionary", file)));
+    if (!parsed.success) {
+      console.error(`FAIL  fixtures/wiktionary/${file} failed TermSnapshot validation — skipped`);
+      failures++;
+      continue;
+    }
+    const snap = parsed.data;
+    rows.push({
+      term: snap.term,
+      year_bucket: snap.yearBucket,
+      data: { relFreq: snap.relFreq, senses: snap.senses },
+      provenance: snap.provenance,
+    });
+    console.log(`PASS  fixtures/wiktionary/${file} — etymology row queued`);
+  }
+
+  if (rows.length === 0) {
+    console.error("FAIL  no valid term_snapshots rows to seed");
+    return 1;
+  }
+
+  const { error } = await client.from("term_snapshots").upsert(rows, { onConflict: "term,year_bucket" });
+  if (error) {
+    console.error(`FAIL  term_snapshots upsert: ${error.message}`);
+    return 1;
+  }
+  console.log(`\nupserted ${rows.length} term_snapshots row(s) across ${new Set(rows.map((r) => r.term)).size} term(s)`);
+  return failures === 0 ? 0 : 1;
+}
+
 async function main(): Promise<void> {
   if (process.argv.includes("--check")) {
     process.exitCode = await check();
     return;
   }
-  // LACUNA(lane-d): DB seeding not implemented — load fixtures/ngram/ +
-  // fixtures/demo dep outputs into Supabase (dep_cache, term_snapshots) via a
-  // direct @supabase/supabase-js client here (lib/db.ts is server-only and
-  // cannot be imported from a script). Until then only --check is supported.
-  console.error("seed mode not implemented yet — run with --check (see LACUNA note in this file)");
+  if (process.argv.includes("--seed")) {
+    process.exitCode = await seed();
+    return;
+  }
+  console.error("usage: node scripts/seed-fixtures.ts --check | --seed");
   process.exitCode = 2;
 }
 
