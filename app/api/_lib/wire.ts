@@ -42,8 +42,16 @@ export const ExtractRequestSchema = z.object({
   text: z.string().min(1, "paste some text to collate").max(50_000),
 });
 
+/**
+ * POST /api/stance body (SPEC v2 §5, N°02). `documentIds` — when present
+ * and non-empty — makes the pool the caller's own corpus selection
+ * (Map's multi-select, already merged): the route skips the search dep
+ * entirely and reads those documents' text directly. Omitted or empty
+ * falls back to the v1 web-search path.
+ */
 export const StanceRequestSchema = z.object({
   question: z.string().min(1, "a contested question is required").max(500),
+  documentIds: z.array(z.string().min(1)).optional(),
 });
 
 /**
