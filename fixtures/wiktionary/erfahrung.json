@@ -3,14 +3,14 @@
   "yearBucket": 2000,
   "senses": [
     {
-      "gloss": "experience; knowledge or skill gained through direct encounter with things",
-      "firstAttested": "Middle High German ervarunge",
-      "note": "From erfahren (to learn, to experience), from Old High German irfaran (to travel through, reach, find out): prefix er- + fahren (to travel). Wiktionary, CC BY-SA 4.0."
+      "gloss": "Middle High German 'ervarunge', meaning 'journeying through' or 'exploration'",
+      "firstAttested": "Middle High German",
+      "note": "Derived from Middle High German ervarunge, also meaning journeying through or exploration. Wiktionary, CC BY-SA 4.0."
     },
     {
-      "gloss": "(philosophy) the totality of perceptions and cognitions a subject acquires, often contrasted with Erlebnis (lived, momentary experience)",
-      "note": "Sense prominent in German philosophical usage (Kant, Dilthey, Benjamin, Adorno). Wiktionary, CC BY-SA 4.0."
+      "gloss": "Derivation from the verb stem 'erfahren' with the suffix '-ung'",
+      "note": "Formed as a derivation from the stem of the verb erfahren using the derivational suffix -ung. Wiktionary, CC BY-SA 4.0."
     }
   ],
-  "provenance": "fixture"
+  "provenance": "cached"
 }

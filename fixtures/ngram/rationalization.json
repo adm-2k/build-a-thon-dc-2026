@@ -1,78 +1,78 @@
 [
   {
-    "term": "experience",
+    "term": "rationalization",
     "yearBucket": 1500,
-    "relFreq": 0.000002806880956995883,
+    "relFreq": 0,
     "senses": [],
     "provenance": "cached"
   },
   {
-    "term": "experience",
+    "term": "rationalization",
     "yearBucket": 1600,
-    "relFreq": 0.00006440503057092428,
+    "relFreq": 0,
     "senses": [],
     "provenance": "cached"
   },
   {
-    "term": "experience",
+    "term": "rationalization",
     "yearBucket": 1700,
-    "relFreq": 0.00004217221066937782,
+    "relFreq": 0,
     "senses": [],
     "provenance": "cached"
   },
   {
-    "term": "experience",
+    "term": "rationalization",
     "yearBucket": 1800,
-    "relFreq": 0.00009640196367399767,
+    "relFreq": 0,
     "senses": [],
     "provenance": "cached"
   },
   {
-    "term": "experience",
+    "term": "rationalization",
     "yearBucket": 1890,
-    "relFreq": 0.0001127390205510892,
+    "relFreq": 4.2556312251917916e-8,
     "senses": [],
     "provenance": "cached"
   },
   {
-    "term": "experience",
+    "term": "rationalization",
     "yearBucket": 1900,
-    "relFreq": 0.00011593461385928094,
+    "relFreq": 5.045446727081071e-8,
     "senses": [],
     "provenance": "cached"
   },
   {
-    "term": "experience",
+    "term": "rationalization",
     "yearBucket": 1910,
-    "relFreq": 0.0001236259995494038,
+    "relFreq": 4.4609780758264606e-8,
     "senses": [],
     "provenance": "cached"
   },
   {
-    "term": "experience",
+    "term": "rationalization",
     "yearBucket": 1920,
-    "relFreq": 0.00015070723020471632,
+    "relFreq": 1.1643232511460155e-7,
     "senses": [],
     "provenance": "cached"
   },
   {
-    "term": "experience",
+    "term": "rationalization",
     "yearBucket": 1930,
-    "relFreq": 0.00013824115740135312,
+    "relFreq": 0.0000017171114450320601,
     "senses": [],
     "provenance": "cached"
   },
   {
-    "term": "experience",
+    "term": "rationalization",
     "yearBucket": 1940,
-    "relFreq": 0.00014064164133742452,
+    "relFreq": 0.0000010913522601185832,
     "senses": [],
     "provenance": "cached"
   },
   {
-    "term": "experience",
+    "term": "rationalization",
     "yearBucket": 1950,
-    "relFreq": 0.00015569223614875227,
+    "relFreq": 0.0000013641292753163725,
     "senses": [],
     "provenance": "cached"
   }
