@@ -66,7 +66,9 @@ OcrResult = { documentId, text, model: string,          // exact HF model id use
               pageNote?: string }                        // model's own caveat, e.g. "right column cropped"
 Entity    = { id, documentId, name, kind: "person" | "place" | "org" | "work" | "concept",
               mentions: number }                         // count within the document
+Document  = { id, rawText, sourceUrl?, tool, createdAt } // wire shape of a documents row (corpus list/create)
 DEP_NAMES += "ocr", "ner"                                // two new ladder rungs
+TickerEvent.instrument widens to "00" | "01" | "02" | "03" | "04"   // §5 new verbs
 ```
 
 `EntityEdge` is NOT a stored type: co-occurrence edges are derived in `lib/engine/graph.ts` from `Entity[]` grouped by document (two entities in the same document = one weighted edge).
