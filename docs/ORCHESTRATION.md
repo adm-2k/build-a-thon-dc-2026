@@ -10,6 +10,13 @@ DECISIONS LOG.
 
 Written 2026-08-28. Dependency facts in §1 were web-verified on that date.
 
+> **Amended 2026-08-30 (post-buildathon).** The buildathon is over; SPEC v2
+> rescopes the product to a five-instrument DH suite (Scriptorium N°00, Tracer
+> N°01, Map N°02, Begriffs N°03, Prosopon N°04). The PROCESS in this file —
+> worktrees, PR gate, rebase choreography, HANDOFF queue, smoke tests — stands
+> unchanged. The §10 milestone clock is RETIRED (SPEC v2 §6 roadmap replaces
+> it); the §5 charters below are the v2 charters; rulings T11–T13 were added.
+
 ---
 
 ## 0. The one-page mental model
@@ -173,8 +180,8 @@ git worktree add ../apparatus-design  -b lane/design
 | Lane | Branch | Owns (globs) | Shared-file exceptions |
 |---|---|---|---|
 | A — Engine | `lane/engine` | `lib/engine/**` (except `graph.ts`), `lib/db.ts`, `lib/env.ts`, `app/api/**`, the DDL *text* (SPEC §3b — execution in the SQL editor is the human's §10 checkpoint) | sole committer of `lib/engine/schemas.ts` |
-| B — Tracer | `lane/tracer` | `app/tracer/**` | — |
-| C — Map | `lane/map` | `app/map/**`, `components/OntologyGraph.tsx`, `lib/engine/graph.ts` | `graph.ts` changes announced via HANDOFF before touching |
+| B — Texts | `lane/tracer` | `app/tracer/**`, `app/scriptorium/**` | — |
+| C — Graphs | `lane/map` | `app/map/**`, `app/network/**`, `components/OntologyGraph.tsx`, `lib/engine/graph.ts` | `graph.ts` changes announced via HANDOFF before touching |
 | D — Data | `lane/data` | `scripts/**`, `fixtures/**` | — |
 | E — Design/Hub | `lane/design` | `components/ui/**`, `app/page.tsx`, `app/layout.tsx`, `app/begriffs/**`, `app/globals.css` | `tokens.css` is frozen — changes require A sign-off |
 
@@ -348,16 +355,21 @@ DDL text in SPEC §3b (its execution in the Supabase SQL editor is the human
 orchestrator's checkpoint, not yours). You are the sole committer of
 schemas.ts. Never edit outside that list.
 
-Priority order: (1) harden schemas.ts against SPEC §3 verbatim; (2) dep.ts
-ladder per SPEC §4 with live→cached→fixture fallthrough demonstrably working,
-under the mode-resolution ruling in ORCHESTRATION §8 T5; (3) llm.ts with
-content-hash cache and the one-repair-pass rule; (4) /api/extract returning
-valid Claim[] for a pasted paragraph; (5) /api/formalize (HF primary, Gemini
-fallback, model-agnostic prompt); (6) /api/trace (search dep → fetch dep →
-readability extract → Gemini judge); (7) /api/stance; (8) /api/events + db.ts
-helpers with one retry; (9) stretch, only after 8: a read-only route or
-server helper over term_snapshots so Lane E's Begriffs panel never imports
-db.ts (ORCHESTRATION §8 T4).
+Priority order (SPEC v2): (1) schemas.ts v2 — add OcrResult, Entity, and the
+"ocr"/"ner" DEP_NAMES per SPEC §3 verbatim; update .env.example (HF_OCR_MODEL,
+DEP_OCR_MODE, DEP_NER_MODE per §8 T5); (2) hfVision() in llm.ts — image_url
+content part, per-call model override (request model ?? HF_OCR_MODEL), 50s
+ocr timeout (ruling T13), Gemini-vision fallback rung; (3) POST /api/ocr
+{imageDataUrl, model?, script?, language?} → OcrResult through dep("ocr",…),
+prompt varies by script/language, fixture floor fixtures/ocr/; (4)
+GET+POST /api/documents — corpus list/create over the documents table, OCR
+metadata write-through to dep_cache per SPEC §3b mapping (ruling T12); (5)
+POST /api/ner → Entity[] (Gemini flat schema, content-hash cached, fixtures/
+ner/ floor); (6) /api/stance accepts optional documentIds[] — corpus extracts
+replace the search dep when present; (7) live search/fetch clients (Tavily
+primary per T9, readability extract) wired into /api/trace and /api/stance;
+(8) GET /api/terms over term_snapshots for Begriffs (T4); (9) db.ts retry
+pass on the three write helpers.
 
 Definition of done per item: the §6 smoke line for it passes. Emit a PR per
 item (ORCHESTRATION §4) — one feature per PR, smoke evidence pasted. When an
@@ -376,17 +388,25 @@ the next item. After any merge to main, follow the rebase choreography
 You are Lane B (Tracer UI, instrument N°01) in docs/WORKTREE-PLAN.md, working
 in the apparatus-tracer worktree on branch lane/tracer. Read CLAUDE.md,
 SPEC.md, docs/DATA-CAVEATS.md, docs/WORKTREE-PLAN.md, and
-docs/ORCHESTRATION.md before writing code. You own app/tracer/** only. You
-run in fixture mode with no API keys; consume engine routes strictly through
-the SPEC §3 types, against committed fixtures until Lane A's routes merge.
+docs/ORCHESTRATION.md before writing code. You own app/tracer/** and
+app/scriptorium/** only. You run in fixture mode with no API keys; consume
+engine routes strictly through the SPEC §3 types, against committed fixtures
+until Lane A's routes merge.
 
-Priority order: (1) paste box + submit per the design anatomy (folio header,
-apparatus margin, colophon); (2) streaming claim list — claims render as they
-resolve, never blocked on the slowest (cap 8 claims, cap stated in the
-margin); (3) logical-form compartments (premises → conclusion, operator
-badge); (4) verdict states Sourced / Weakly Sourced / Untraceable with
-ProvenanceChips; (5) LACUNA and COLLATING… states for every async region — a
-hanging spinner is a defect.
+Priority order (SPEC v2 — you now own app/scriptorium/** as well): (1)
+Scriptorium page within full anatomy: image drop/upload with client-side
+downscale to ≤1600px JPEG, preview pane, model picker listing the
+DATA-CAVEATS addendum-2 registry (free-text override allowed), script
+(print/handwriting) + language (en/de) toggles; (2) transcription flow:
+POST /api/ocr → COLLATING… → transcription pane beside the image, ProvenanceChip
+NAMING the model, plain-textarea edit, "Fix in the record" → POST
+/api/documents → hand-off links "Anatomize in Tracer" / "Chart in Prosopon";
+(3) Tracer input: corpus document picker (GET /api/documents) beside the
+paste box; (4) streaming claim list — claims render as they resolve, never
+blocked on the slowest (cap 8, stated in the margin); (5) logical-form
+compartments (premises → conclusion, operator badge); (6) verdict states
+Sourced / Weakly Sourced / Untraceable with ProvenanceChips; (7) LACUNA and
+COLLATING… states for every async region — a hanging spinner is a defect.
 
 Definition of done per item: the §6 smoke line passes and the view passes the
 CLAUDE.md ship checklist (tokens only, one rubricated primary action, three
@@ -404,16 +424,23 @@ You are Lane C (Map UI + graph, instrument N°02) in docs/WORKTREE-PLAN.md,
 working in the apparatus-map worktree on branch lane/map. Read CLAUDE.md,
 SPEC.md, docs/DATA-CAVEATS.md, docs/WORKTREE-PLAN.md, and
 docs/ORCHESTRATION.md before writing code. You own app/map/**,
-components/OntologyGraph.tsx, and lib/engine/graph.ts — the last is a shared
-file: announce every graph.ts change as a CROSS-LANE note in docs/HANDOFF.md
-before touching it. You run in fixture mode with no API keys.
+app/network/**, components/OntologyGraph.tsx, and lib/engine/graph.ts — the
+last is a shared file: announce every graph.ts change as a CROSS-LANE note in
+docs/HANDOFF.md before touching it. You run in fixture mode with no API keys.
 
-Priority order: (1) question input + submit within the design anatomy; (2)
-graph.ts: StanceCluster[] → Cytoscape elements; (3) OntologyGraph — node fill
-by cluster from --chart-* in fixed order, square compartment nodes (radius 0,
-1px hairline), edges in --ink-2 typed agrees/disputes, selected node ringed
-in --rubric; (4) margin cluster inventory listing each cluster's evidenceKind
-with ProvenanceChips; (5) LACUNA / COLLATING… states.
+Priority order (SPEC v2 — you now own app/network/** as well): (1) graph.ts
+v2 — keep StanceCluster[] → elements; add Entity[] (grouped by document) →
+co-occurrence elements: nodes merged on exact name+kind, size by total
+mentions, edge weight = shared documents (announce via CROSS-LANE note as
+always); (2) OntologyGraph hardening — node fill from --chart-* in fixed
+order, square compartment nodes (radius 0, 1px hairline), edges in --ink-2,
+selected node ringed in --rubric; (3) Map page: question input + corpus
+document multi-select (GET /api/documents) with web-search fallback, POST
+/api/stance, cluster graph + margin inventory of evidenceKind with
+ProvenanceChips; (4) Prosopon page /network: corpus-wide entity network via
+per-document POST /api/ner, node kind → --chart-* order (person/place/org/
+work/concept), margin entity register with mention counts; empty corpus →
+LACUNA pointing at Scriptorium; (5) LACUNA / COLLATING… states everywhere.
 
 Definition of done per item: §6 smoke line + CLAUDE.md ship checklist. One
 feature per PR with smoke evidence. Colors from tokens only — a generated hue
@@ -430,16 +457,22 @@ apparatus-data worktree on branch lane/data. Read CLAUDE.md, SPEC.md,
 docs/DATA-CAVEATS.md, docs/WORKTREE-PLAN.md, and docs/ORCHESTRATION.md. You
 own scripts/** and fixtures/**. Your output is data and scripts, not app code.
 
-Priority order: (1) choose the 3 demo inputs — one trending post for Tracer
-live, two contested-but-not-gruesome questions for Map (DATA-CAVEATS §3
-refusal-risk guidance) — and log them as a DECISION row for A's sign-off; (2)
-search/fetch/LLM fixtures for all three inputs, schema-valid against
-lib/engine/schemas.ts (validate with scripts/seed-fixtures.ts --check); (3)
-extracted-text fixtures for every URL in the search fixtures; (4)
-harvest-begriffs.ts run for the 5 seed terms (Erfahrung, Fordismus,
-Rationalisierung, experience, rationalization) with 2s sleeps — eyeball the
-etymology output before committing (DATA-CAVEATS §6); (5) seed the DB and
-commit the harvest output to fixtures/ngram/.
+Priority order (SPEC v2): (1) choose the reference corpus — 3 public-domain
+early-20th-century page scans (one EN print, one DE Antiqua, one DE Fraktur
+or handwriting; Internet Archive / Wikimedia, note source URLs) — log as a
+DECISION row for A's sign-off; commit the images' TRANSCRIPTIONS (never the
+images) as fixtures/ocr/<slug>.json (OcrResult shape) plus fixtures/ner/
+Entity[] fixtures for each; (2) register every new fixture family's schema in
+scripts/seed-fixtures.ts and keep --check green; (3) implement + run
+harvest-begriffs.ts for real: 5 seed terms (Erfahrung, Fordismus,
+Rationalisierung, experience, rationalization), century buckets 1500–1900
+PLUS decades 1890–1950, corpus ids asserted against {en-2019, de-2019},
+Wiktionary etymology via the Action API two-step, 2s sleeps, eyeball the
+etymology before committing (DATA-CAVEATS §6); commit output to
+fixtures/ngram/ and seed term_snapshots; (4) implement seed-fixtures.ts seed
+mode (direct @supabase/supabase-js in the script — lib/db.ts is server-only)
+and seed the DB; (5) two contested questions for Map + their search/fetch
+fixtures, refreshed against the corpus theme.
 
 You are the lane most likely to need live keys (KEY rows to docs/HANDOFF.md,
 continue on other items while waiting). Never commit raw HTML — extracted or
@@ -459,15 +492,18 @@ You own components/ui/**, app/page.tsx, app/layout.tsx, app/begriffs/**, and
 app/globals.css. tokens.css is frozen — changes need A's sign-off. You run
 with no API keys.
 
-Priority order: (1) harden the scaffold's primitives (FolioHeader, Colophon,
-ApparatusMargin, Compartment, ProvenanceChip, Ticker, LacunaState) as dumb
-presentational components to DESIGN-BRIEF §6 spec; (2) hub catalogue —
-compartment cells with N°, name, one-line function, live count from
-/api/events; (3) ticker on 5s polling of /api/events (Realtime is a stretch —
-see ORCHESTRATION §8 T1 — polling behavior is identical to the audience); (4)
-begriffs panel reading term_snapshots via an engine route if present,
-otherwise the greyed LACUNA panel with the DATA-CAVEATS §5 limitation copy
-verbatim; (5) FOLIO MISSING 404 page, colophon with event stamp.
+Priority order (SPEC v2): (1) harden the scaffold's primitives (FolioHeader,
+Colophon, ApparatusMargin, Compartment, ProvenanceChip, Ticker, LacunaState)
+as dumb presentational components to DESIGN-BRIEF §6 spec — ProvenanceChip
+must support a model-name label (SPEC §4: the OCR chip names the model); (2)
+hub catalogue — FIVE compartment cells (N°00 Scriptorium … N°04 Prosopon,
+ruling T11) with N°, name, one-line function, live count from /api/events;
+(3) ticker on 5s polling of /api/events (T1); (4) Begriffs page as a FULL
+instrument: term picker over GET /api/terms, frequency curve at century
+resolution with the century ⇄ decade (1890–1950) toggle, etymology chain
+compartments, OCR-noise caveat verbatim + Wiktionary CC BY-SA credit in the
+colophon; LACUNA panel when no harvest rows exist; (5) FOLIO MISSING 404
+page, colophon with event stamp.
 
 If v0 credits are used for component shells: v0 output is a draft, not a
 merge — tokenize it, strip every literal, and pass the hex grep before it
@@ -578,6 +614,9 @@ the entire point of this protocol.
 | T8 | DESIGN-BRIEF §10 catalogues five provisional instruments (Ontology Builder … Gloss) | The real list is SPEC §0's three (Tracer N°01, Map N°02, Begriffs N°03); the hub renders **3** catalogue cells. §10's styling notes apply by analogy: N°01 graph rules → Map, N°05 reading view → Tracer |
 | T9 | DATA-CAVEATS §1 preference order (Brave → Tavily → Google) | Google is closed to new customers; Brave requires a card with ambiguous free-tier QPS. **Tavily primary, Brave fallback** (addendum §1) |
 | T10 | SPEC §1 pins `gemini-2.5-flash`, but that model is **closed to new users** — live-verified 404 on the project's actual key, 2026-08-28 | Model id moves to env: `GEMINI_MODEL=gemini-3.6-flash` (Google's stated migration target; verified 200, ~1s). Fallback string: `gemini-3.5-flash` (verified 200). **Never `gemini-3.7-flash`** — timed out at 30s on a default call. `llm.ts` reads `GEMINI_MODEL`; 3.x models take `thinkingLevel` ("low" for extract/judge), not `thinkingBudget` |
+| T11 | Ruling T8 fixed the hub at **3** catalogue cells; SPEC v2 ships five instruments | **Five cells** (N°00–N°04). T8's deeper point stands: the catalogue renders exactly SPEC §0's table, nothing provisional |
+| T12 | SPEC v2 adds OCR + NER data, but new tables need A in the Supabase SQL editor | **Zero new DDL in round 1.** OCR text → `documents.raw_text` (tool `"scriptorium"`); OCR metadata → `dep_cache` (`dep='ocr'`); NER output → `dep_cache` (`dep='ner'`). A dedicated `entities` table is Round 2, SPEC §3b amended first |
+| T13 | The v1 `hf` dep timeout is 8s, but a live OCR call on the pinned VLM took 36s (addendum 2) | `ocr` is its own dep with a **50s** timeout inside the 60s route budget; the 8s `hf` text timeout is untouched. Never share timeouts across deps with different physics |
 
 ---
 
@@ -632,6 +671,12 @@ never a chat transcript.
 ---
 
 ## 10. Milestone clock with orchestration checkpoints
+
+> **RETIRED 2026-08-30.** The buildathon clock below is preserved as a record;
+> SPEC v2 §6's roadmap governs sequencing now. Still live from this section:
+> the credential smoke tests (§1.2), "verify production after every merge"
+> (via the prodcheck GitHub Action — local curl cannot reach `*.vercel.app`,
+> DATA-CAVEATS addendum 2 §12), and the DDL-is-A's-checkpoint rule.
 
 Product milestones are SPEC §6 (frozen). The orchestration overlay — what A
 does at each checkpoint:

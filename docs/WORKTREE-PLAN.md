@@ -2,6 +2,8 @@
 How to run multiple Claude Code sessions concurrently without collisions, using git worktrees. One repo, one `main`, one deployment; each lane is a worktree + branch + a running Claude Code instance with a scoped charter.
 
 > Amended 2026-08-28: lane definitions and ownership lists here remain authoritative. Everything operational is superseded by `docs/ORCHESTRATION.md` — merge mechanics by §4, setup commands and timing by §2 (worktrees are created only **after** the Phase 0 scaffold PR merges), and the opening prompts by the §5 charter blocks (the charter sketch at the bottom of this file is historical). Where a lane note below conflicts with an ORCHESTRATION §8 ruling, the ruling wins.
+>
+> Amended 2026-08-30 (SPEC v2 rescope): ownership is now authoritative in **ORCHESTRATION §2.3** — Lane B added `app/scriptorium/**`, Lane C added `app/network/**`; charters are the v2 blocks in ORCHESTRATION §5. The lane sketches below are historical color, not contracts.
 
 ## Setup (A runs once, ~3 min — **after** the Phase 0 scaffold PR merges; see ORCHESTRATION §2.1–2.2 for the authoritative sequence and per-worktree steps)
 

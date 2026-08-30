@@ -230,3 +230,69 @@ page or a live endpoint on 2026-08-28.
 `@supabase/supabase-js@2.112.4` · `@mozilla/readability@0.6.0` ·
 `jsdom@30.0.1` (requires Node ^22.22.2 || ^24.15.0 || ≥26 — Vercel default is
 Node 24.x; **check local Node versions in every worktree at setup**).
+
+---
+
+## Addendum 2 — web-verified 2026-08-30 (post-buildathon rescope: OCR + NER)
+
+Where this conflicts with anything above, **this addendum wins**. Verified live
+on the project's HF token against the production router on 2026-08-30.
+
+### §10 OCR via the HF Inference Providers router (Scriptorium, N°00)
+
+- **There are NO dedicated OCR models (TrOCR/Kraken-style) on the router** —
+  it serves chat completions only. OCR runs through **vision-language models**
+  with an `image_url` content part (base64 data URL). This is what makes the
+  swap-on-the-fly requirement trivial: the model is a per-request string.
+- **Router VLM inventory (2026-08-30, 136 models total):** the OCR-capable set
+  is `Qwen/Qwen3-VL-30B-A3B-Instruct`, `Qwen/Qwen3-VL-235B-A22B-Instruct`
+  (+Thinking), `Qwen/Qwen2.5-VL-72B-Instruct`, `google/gemma-3-27b-it`
+  (+12b/4b), `CohereLabs/aya-vision-32b`, `baidu/ERNIE-4.5-VL-424B-A47B-Base-PT`.
+  The catalog churns — re-list (`GET /v1/models`) before pinning anything new.
+- **Live A/B on a dense 1900 German Antiqua page** (500px scan, "Die Kunst"
+  Bd. 4, IA via Wikimedia):
+  - `Qwen/Qwen3-VL-30B-A3B-Instruct` — **36s**, near-faithful line-true
+    transcription (errors of the OCR kind: proper names, ligatures). **The pin:
+    `HF_OCR_MODEL=Qwen/Qwen3-VL-30B-A3B-Instruct`.**
+  - `google/gemma-3-27b-it` — **4s**, noticeably lossier; correctly identified
+    language and print type. The "fast draft" registry entry.
+  - Consequence (ruling T13): dep timeout for `ocr` is **50s**, inside the 60s
+    route budget; never reuse the 8s text-formalizer timeout.
+- **Registry for the model picker** (UI lists these; free-text override allowed):
+  `Qwen/Qwen3-VL-30B-A3B-Instruct` (default, quality) ·
+  `google/gemma-3-27b-it` (fast draft) · `Qwen/Qwen2.5-VL-72B-Instruct`
+  (second opinion) · `CohereLabs/aya-vision-32b` (multilingual alt).
+  Fraktur/Kurrent accuracy comparison on real scans is a Round-2 item — until
+  then the script toggle changes the PROMPT, not the model.
+- **Image discipline:** client-side downscale to ≤1600px longest edge, JPEG;
+  base64 data URL in the message content. A 500px page already OCRs usably;
+  1600px is the quality/latency sweet spot. Never store the image — only the
+  transcription and the image's sha256 (provenance key).
+- **Ladder:** live HF VLM → live Gemini vision (same prompt, same flat output
+  shape) → dep_cache → `fixtures/ocr/<slug>.json` → LACUNA. 429 → cache, no
+  retry (PRO PAYG makes true 429s rare; cold starts show up as latency, not
+  errors).
+
+### §11 NER (Prosopon, N°04)
+
+- **Gemini primary** (structured output, flat `{entities: Entity[]}` schema,
+  `thinkingLevel: "low"`): one call per document, content-hash cached in
+  `dep_cache` (`dep='ner'`) — re-rendering the network costs zero quota for
+  known documents. HF text model as fallback rung, fixture floor at
+  `fixtures/ner/`.
+- Entity `kind` vocabulary is closed (`person|place|org|work|concept`) and
+  lives in schemas.ts; the prompt must instruct historical-text conventions
+  (e.g. "Frhr. v." honorifics, Latinized place names) and forbid inventing
+  kinds. Name normalization beyond exact-match merging is Round 2 —
+  under-merging is honest, over-merging silently fabricates a network.
+
+### §12 The network reality on the build machine
+
+Cisco Umbrella on this machine's network MITMs TLS broadly and **blocks
+`*.vercel.app` outright** (403 + OpenDNS block page; `vercel.com` and
+`api.vercel.com` are reachable; `router.huggingface.co`, `commons.wikimedia.org`,
+`generativelanguage.googleapis.com` all verified reachable). Consequences:
+production checks run via the `prodcheck` GitHub Action, never local curl;
+production itself sits behind Vercel Authentication (302) until A toggles
+Deployment Protection off — external probes confirmed the deployment EXISTS at
+`build-a-thon-dc-2026-adm-2ks-projects.vercel.app`.

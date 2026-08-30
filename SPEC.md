@@ -1,169 +1,137 @@
-# SPEC.md — Apparatus Build Specification
-**DevFestDC 2026 Buildathon · single deployment, hub + instruments**
-Status: FROZEN for the sprint. Changes require A's sign-off. Claude Code: read this file, `CLAUDE.md`, `DESIGN-BRIEF.md`, and `docs/DATA-CAVEATS.md` before writing code.
+# SPEC.md — Apparatus Build Specification, v2
+**A digital-humanities instrument suite for early-20th-century textual research.**
+Status: governing. v1 (the DevFestDC 2026 buildathon spec) is superseded as of 2026-08-30 by A's rescope decision (HANDOFF DECISIONS LOG). Changes still require A's sign-off. Claude Code: read this file, `CLAUDE.md`, `DESIGN-BRIEF.md`, and `docs/DATA-CAVEATS.md` (both addenda) before writing code.
 
 ---
 
 ## 0. What we are building (90 seconds)
 
-**Apparatus** is one deployed Next.js application containing a hub catalogue and two working instruments, submitted against two official buildathon concepts:
+**Apparatus** is one deployed Next.js application: a hub catalogue and five working instruments forming a first-round workflow for research on early-20th-century texts (English and German) — OCR the source, anatomize its arguments, map the disagreement, trace the concepts, chart the people.
 
-| N° | Instrument | Official concept | One-line function |
-|----|-----------|------------------|-------------------|
-| 01 | **Tracer** | 1.1 Claim Tracer | Paste text → atomic claims → logical form → source status (Sourced / Weakly Sourced / Untraceable) |
-| 02 | **Map** | 1.4 Disagreement Map | Contested question → 5–8 sources → stances clustered → typed disagreement graph |
-| 03 | **Begriffs** | (stretch, greyed) | Term → etymology chain + century-interval frequency panel; visible but marked `LACUNA — future work` |
+| N° | Instrument | One-line function |
+|----|-----------|-------------------|
+| 00 | **Scriptorium** | Page image → transcription via a hot-swappable HF vision model (print/handwriting, EN/DE) → saved to the corpus |
+| 01 | **Tracer** | Text (pasted or a corpus document) → atomic claims → logical form → evidence status (Sourced / Weakly Sourced / Untraceable) |
+| 02 | **Map** | Contested question + selected sources (corpus documents or web search) → stances clustered → typed disagreement graph |
+| 03 | **Begriffs** | Term → etymology chain + frequency panel, EN/DE, century intervals 1500–1900 plus decade resolution 1890–1950 |
+| 04 | **Prosopon** | Named entities recognized across the corpus → typed co-occurrence network (person / place / org / work / concept) |
 
-The differentiator: Tracer renders each claim's **logical form** (premises → conclusion, empirical vs. normative operator) before sourcing it. Map renders positions as a **typed stance ontology**, not a link dump. N°03 exists on screen to state scope honestly (demo checklist item 4).
+The connective tissue is the **corpus**: Scriptorium (and Tracer's paste box) write `documents` rows; Tracer, Map, and Prosopon read them. Every externally-derived datum still carries a ProvenanceChip; every empty or failed state is still a state, not a crash.
 
-**Non-goals (do not build):** auth, user accounts, mobile-specific layouts, fine-tuning, editing/persistence of user sessions beyond one table row, any second graph library, dark-mode QA beyond the tokens.css contract.
+**Non-goals (round 1):** auth/user accounts, IIIF ingestion, batch/queued OCR, entity disambiguation across name variants, editing OCR output beyond a plain textarea before save, mobile layouts, any second graph library, RLS.
 
 ---
 
 ## 1. Stack (decided — do not relitigate)
 
-- **Next.js (App Router) + TypeScript**, single app, single Vercel project, Fluid compute on (default). `maxDuration = 60` set explicitly on every LLM-touching route.
-- **Styling:** Tailwind utilities mapped to `tokens.css` custom properties. tokens.css is copied verbatim from the design repo; it is the only file allowed to contain hex values.
-- **DB:** Supabase (free tier), accessed **only from server route handlers** via `supabase-js` with the service-role key. The browser never imports the Supabase client. No RLS work.
-- **LLM primary:** Gemini 2.5 Flash via Vercel AI SDK (`ai` + `@ai-sdk/google`), structured output with zod schemas.
-- **LLM secondary (cheap/volume):** one small instruct model via the Hugging Face Inference Providers router (OpenAI-compatible endpoint). Pin the exact model at build start after a warm-up call — see DATA-CAVEATS §5.
-- **Graph:** Cytoscape.js, one shared `<OntologyGraph>` component, pigment palette from tokens (`--chart-*` order, per CLAUDE.md rule 7).
-- **Validation:** zod everywhere an LLM or external API produces data. A failed parse triggers exactly one repair pass (re-prompt with the zod error), then falls to the dependency ladder (§4).
+- **Next.js (App Router) + TypeScript**, single app, single Vercel project, Fluid compute. `maxDuration = 60` on every LLM- or OCR-touching route.
+- **Styling:** Tailwind utilities on `tokens.css` custom properties; tokens.css is the only file with color/font/radius literals.
+- **DB:** Supabase via `lib/db.ts` only (`import "server-only"`, service-role key). **Round 1 adds NO tables and NO columns** — see §3b storage mapping.
+- **LLM primary:** Gemini via Vercel AI SDK (`ai@7` + `@ai-sdk/google`), `generateText` + `Output.object`, model id from `GEMINI_MODEL` (ruling T10).
+- **LLM secondary + OCR:** the Hugging Face Inference Providers router (OpenAI-compatible chat completions). Text: `HF_FORMALIZER_MODEL`. **Vision/OCR: `HF_OCR_MODEL`, overridable per request** — swapping OCR models is a string change, never a code change (live-verified 2026-08-30, DATA-CAVEATS addendum 2).
+- **Graph:** Cytoscape.js, one shared `<OntologyGraph>`, pigment palette from `--chart-*` in fixed order.
+- **Validation:** zod everywhere external data enters; one repair re-prompt, then the ladder. All LLM output schemas flat (no `z.union` — Gemini rejects it).
+- **No new npm dependencies** for round 1 — images travel as base64 data URLs; no image library server-side.
 
 ---
 
-## 2. Repository layout
+## 2. Repository layout (delta from v1)
 
 ```
-apparatus/
-  CLAUDE.md                  ← design rules (existing) + engineering rules (appended)
-  SPEC.md                    ← this file
-  DESIGN-BRIEF.md  tokens.css
-  docs/
-    DATA-CAVEATS.md          ← dependency registry + fallback ladder
-    WORKTREE-PLAN.md         ← parallel agent lanes
-  app/
-    layout.tsx  page.tsx     ← hub catalogue (compartment cells, ticker)
-    tracer/page.tsx          ← N°01 UI
-    map/page.tsx             ← N°02 UI
-    begriffs/page.tsx        ← N°03 greyed panel (static, reads cache if present)
-    api/
-      extract/route.ts       ← text → Claim[] (shared by 01 and 02)
-      formalize/route.ts     ← Claim → LogicalForm
-      trace/route.ts         ← Claim → SourceVerdict (search + fetch + judge)
-      stance/route.ts        ← question → SourceDoc[] → StanceCluster[]
-      events/route.ts        ← ticker writes
-  components/
-    ui/                      ← FolioHeader, Colophon, ApparatusMargin, Compartment,
-                               ProvenanceChip, Ticker, LacunaState
-    OntologyGraph.tsx
-  lib/
-    engine/
-      schemas.ts             ← ALL zod schemas + inferred TS types (single source of truth)
-      llm.ts                 ← gemini() and hf() callers, one retry, content-hash cache
-      dep.ts                 ← dependency ladder wrapper (§4)
-      graph.ts               ← Claim[]/StanceCluster[] → Cytoscape elements
-    db.ts                    ← server-only Supabase client + typed table helpers
-  scripts/
-    harvest-begriffs.ts      ← one-shot: seed terms → ngram/wiktionary → term_snapshots
-    seed-fixtures.ts         ← loads demo fixtures into DB
-  fixtures/                  ← JSON fixtures per dependency (committed to git)
+app/
+  page.tsx                 ← hub catalogue: FIVE compartment cells + ticker
+  scriptorium/page.tsx     ← N°00 UI (upload, model picker, transcription)
+  tracer/page.tsx          ← N°01 UI
+  map/page.tsx             ← N°02 UI
+  begriffs/page.tsx        ← N°03 UI (now a full instrument)
+  network/page.tsx         ← N°04 UI (Prosopon)
+  api/
+    ocr/route.ts           ← image → OcrResult (HF vision, swappable)
+    ner/route.ts           ← text/documentId → Entity[]
+    documents/route.ts     ← corpus list (GET) / create (POST)
+    terms/route.ts         ← term_snapshots read for Begriffs
+    extract|formalize|trace|stance|events|health  ← as v1
 ```
-
-Ownership boundaries (anti-collision, see WORKTREE-PLAN): `lib/engine/*` is Lane A only; each `app/<tool>` directory has one owner; `components/ui` changes go through Lane E.
+Everything else is as v1 §2. Ownership: see ORCHESTRATION §2.3 (v2 table).
 
 ---
 
 ## 3. Data contracts (`lib/engine/schemas.ts`)
 
-These types are the interfaces between lanes. Freeze them first; UI and pipeline work proceed in parallel against them.
+v1 types are unchanged: `Claim`, `LogicalForm`, `SourceVerdict`, `StanceCluster`, `SourceDoc`, `TermSnapshot`, `TickerEvent`, `DepMode`, `Lacuna`, `DepResult`. v2 adds (flat, zod-first, Lane A sole committer):
 
 ```ts
-Claim = { id, documentId, text, kind: "empirical" | "normative" | "definitional",
-          confidence: number }                      // extractor output
-LogicalForm = { claimId, premises: string[], conclusion: string,
-          operator: "asserts" | "obligates" | "permits" | "predicts",
-          formalization: string }                    // e.g. "P1 ∧ P2 → C"
-SourceVerdict = { claimId, status: "sourced" | "weakly_sourced" | "untraceable",
-          sources: { url, title, quoteSpan?, fetchedVia: DepMode }[] , rationale }
-StanceCluster = { id, label, sources: SourceDoc[], coreClaimIds: string[],
-          agreesWith: string[], disputes: string[], evidenceKind: string }
-SourceDoc = { id, url, title, extractedText?, stanceClusterId? }
-TermSnapshot = { term, yearBucket: number, relFreq?: number,
-          senses: { gloss, firstAttested?, note }[], provenance: DepMode }
-DepMode = "live" | "cached" | "fixture"
-TickerEvent = { instrument: "01"|"02"|"03", verb: string, count?: number, at: timestamp }
+OcrResult = { documentId, text, model: string,          // exact HF model id used
+              script: "print" | "handwriting", language: "en" | "de" | "mixed",
+              pageNote?: string }                        // model's own caveat, e.g. "right column cropped"
+Entity    = { id, documentId, name, kind: "person" | "place" | "org" | "work" | "concept",
+              mentions: number }                         // count within the document
+DEP_NAMES += "ocr", "ner"                                // two new ladder rungs
 ```
 
-## 3b. Postgres DDL (run once in Supabase SQL editor)
+`EntityEdge` is NOT a stored type: co-occurrence edges are derived in `lib/engine/graph.ts` from `Entity[]` grouped by document (two entities in the same document = one weighted edge).
 
-```sql
-create table documents   (id uuid primary key default gen_random_uuid(),
-                          raw_text text, source_url text, tool text, created_at timestamptz default now());
-create table claims      (id uuid primary key default gen_random_uuid(),
-                          document_id uuid references documents, text text, kind text,
-                          logical_form jsonb, verdict jsonb, created_at timestamptz default now());
-create table source_docs (id uuid primary key default gen_random_uuid(),
-                          query text, url text, title text, extracted_text text,
-                          stance jsonb, created_at timestamptz default now());
-create table term_snapshots (term text, year_bucket int, data jsonb, provenance text,
-                          primary key (term, year_bucket));
-create table dep_cache   (dep text, key_hash text, payload jsonb, fetched_at timestamptz,
-                          primary key (dep, key_hash));
-create table events      (id bigint generated always as identity primary key,
-                          instrument text, verb text, count int, at timestamptz default now());
-```
+## 3b. DDL — **unchanged**; round-1 storage mapping
 
-`dep_cache` is the generic cache behind the ladder — every external call writes through it. Store extracted/derived JSON, never raw HTML (size discipline; Supabase free tier is 500MB and we should end the day under 20MB).
+The six v1 tables stand exactly as deployed. New data maps onto them (ruling T12):
+
+| Datum | Where it lives |
+|---|---|
+| OCR transcription | `documents` (`raw_text` = transcription, `source_url` = image origin or `scriptorium:<sha>`, `tool` = `"scriptorium"`) |
+| OCR result metadata (model, script, language) | `dep_cache` (`dep='ocr'`, key = image content hash, payload = OcrResult) |
+| NER output | `dep_cache` (`dep='ner'`, key = document content hash, payload = Entity[]) |
+| Begriffs decade rows | `term_snapshots` (year_bucket carries decades 1890–1950 alongside the century buckets) |
+
+A dedicated `entities` table is a round-2 item and requires amending this section first, plus A running the DDL in the Supabase SQL editor.
 
 ---
 
-## 4. The dependency ladder (core architectural pattern)
+## 4. The dependency ladder (unchanged pattern, two new deps)
 
-Every external dependency is called through `dep(name, key, liveFn)` in `lib/engine/dep.ts`:
+`dep(name, key, liveFn)` in `lib/engine/dep.ts` as v1 §4 (live → cached → fixture → Lacuna), mode resolution per ruling T5. New registered deps:
 
-1. **Mode resolution:** `DEP_<NAME>_MODE` env var (`live | cached | fixture`), default `live`.
-2. **live:** run `liveFn` with an AbortController timeout (values per dependency in DATA-CAVEATS). On success → write through to `dep_cache` → return `{data, mode:"live"}`. On timeout/error → fall to cached.
-3. **cached:** read `dep_cache` by `(dep, sha256(key))`. Hit → `{data, mode:"cached", fetchedAt}`. Miss → fall to fixture.
-4. **fixture:** read `fixtures/<dep>/<slug>.json`. Hit → `{data, mode:"fixture"}`. Miss → return typed `Lacuna` error; UI renders the `LACUNA` empty state (never a crash, never a spinner that hangs).
+- **ocr** — HF router vision chat completion. Timeout **50s** (live-verified: 36s for a dense page on the 30B model — ruling T13); model = request override ?? `HF_OCR_MODEL`. Fallback rung inside live: Gemini vision (same prompt), then the ladder.
+- **ner** — Gemini structured output (flat Entity[] schema), `thinkingLevel: "low"`. Timeout 30s.
 
-**UI rule:** every piece of externally-derived data renders a `ProvenanceChip` — `COLLATED 12:41` (cached), `LIVE`, or `FROM THE RECORD` (fixture) — in the apparatus margin. This converts our fallback engineering into visible scholarly honesty, which is the judging posture: the prototype gestures toward what LLM semantic capacities unlock, and says plainly which parts are live.
+Env modes `DEP_OCR_MODE`, `DEP_NER_MODE` join the T5 contract (unset + key present → live; unset + keyless → fixture).
 
-Flipping one env var in Vercel puts any flaky dependency into demo-safe mode without a code change.
+**UI rule unchanged:** every externally-derived datum renders a ProvenanceChip; the OCR chip **names the model** (`Qwen3-VL-30B · LIVE`), because which model read the page is provenance in the scholarly sense.
 
 ---
 
 ## 5. Pipelines
 
-**Tracer (N°01):** paste → `POST /api/extract` (Gemini, zod `Claim[]`) → render claim list immediately → per-claim `POST /api/formalize` (HF small model; Gemini fallback) → `POST /api/trace` per claim: search dep → fetch top 2 pages dep → extract text (`@mozilla/readability` + `jsdom`, 5s cap each) → Gemini judge → `SourceVerdict`. Claims stream into the UI as they resolve; the page is never blocked on the slowest claim. Cap: 8 claims per document (state the cap in the margin).
+**Scriptorium (N°00):** drop/upload page image (JPEG/PNG, client-side downscale to ≤1600px longest edge) → `POST /api/ocr {imageDataUrl, model?, script?, language?}` → route builds a script/language-specific transcription prompt → HF vision via `dep("ocr", …)` → `OcrResult` rendered beside the image (COLLATING… while waiting) → user may edit in a plain textarea → "Fix in the record" → `POST /api/documents` (writes `documents` + `dep_cache` OCR metadata) → offer hand-offs: "Anatomize in Tracer" / "Chart in Prosopon". Model picker lists the registry from DATA-CAVEATS addendum 2; switching models re-runs the same image with a different `model` string.
 
-**Map (N°02):** question → search dep (n=8) → fetch+extract each (parallel, capped) → Gemini stance-clustering into `StanceCluster[]` (one call, all extracts) → `graph.ts` → Cytoscape render. Node color = pigment by cluster; edge type = agrees/disputes; margin lists each cluster's `evidenceKind`.
+**Tracer (N°01):** as v1 §5 (extract → formalize → trace per claim, cap 8, streaming) with one addition: input is EITHER a paste OR a corpus document picked from `GET /api/documents`.
 
-**Begriffs (N°03):** NO runtime pipeline. `scripts/harvest-begriffs.ts` runs locally once against 5 seed terms (`Erfahrung, Fordismus, Rationalisierung, experience, rationalization`), century buckets 1500–1900 + 1950/2000, writes `term_snapshots`, and the page renders whatever exists — otherwise the greyed panel with the stated-limitation copy.
+**Map (N°02):** question + source pool. Pool = selected corpus documents (preferred) or web search (v1 path). `POST /api/stance {question, documentIds?}` — when `documentIds` present, extracts come from the corpus, no search dep. Clustering and graph rendering as v1.
 
-**Ticker:** each pipeline completion inserts an `events` row; hub subscribes via Supabase Realtime; marquee renders `N°01 · 14 CLAIMS COLLATED`. If Realtime misbehaves, poll `/api/events` every 5s — behavior identical to the audience.
+**Begriffs (N°03):** harvest-time only, as v1, PLUS decade buckets 1890–1950 for the five seed terms; the formerly-greyed "finer sampling" toggle becomes real (century ⇄ decade). Page reads `GET /api/terms?term=…`; keeps the OCR-noise caveat and CC BY-SA credit in the colophon.
+
+**Prosopon (N°04):** corpus documents → per-document `POST /api/ner` (content-hash cached — re-running the corpus costs one call per NEW document) → `graph.ts` merges `Entity[]` by exact name+kind into nodes (size = total mentions), edges = same-document co-occurrence (weight = documents shared) → Cytoscape. Node fill by kind from `--chart-*` in fixed order; margin lists the entity register with counts and each document's ProvenanceChip. Empty corpus → LACUNA panel pointing at Scriptorium.
+
+**Ticker:** unchanged (polling, ruling T1). New verbs: `N°00 · PAGE FIXED IN THE RECORD`, `N°04 · ENTITIES REGISTERED`.
 
 ---
 
-## 6. Milestone clock (finals 4:45 PM; submission needs a public URL)
+## 6. Roadmap (replaces the v1 milestone clock)
 
-- **T+0:20** — scaffold (`create-next-app`), tokens.css + fonts in, push to GitHub, import to Vercel, env vars set. **Deployed skeleton before any feature work.** Local-first building is fine after this; every merge to `main` redeploys.
-- **T+1:00** — schemas.ts frozen; DDL run; `dep.ts` + fixtures for search/fetch committed.
-- **T+2:00** — Tracer end-to-end on live paste input (the one guaranteed-live flow: it needs only LLM calls).
-- **T+3:00** — Map end-to-end (live or cached per ladder); hub catalogue + ticker.
-- **T+3:30** — harvest script run; Begriffs panel populated or honestly greyed; ProvenanceChips everywhere.
-- **T+4:00** — freeze. Demo rehearsal only. No commits after rehearsal except copy fixes.
+**Round 1 — the coherent suite (this build):** all five instruments pass their §6 smoke lines in fixture mode; Scriptorium + Tracer + Prosopon work LIVE end-to-end with real keys; hub shows five cells with live counts; Begriffs shows real harvest data at century + decade resolution; deployed `main` stays green.
 
-**Demo choreography (fits checklist items 1–5):** open hub (deployed URL visible) → paste a live trending post into Tracer (real input, live) → claims + logical forms stream in → pivot to Map on a pre-cached contested question (chips say `COLLATED`) → point at N°03 and *say the limitation* → 90-second story: "readers can't see the logical anatomy of what they read; LLMs make the apparatus criticus buildable for the open web."
+**Round 2 — the workflow (refinement backlog, in rough order):** corpus manager view (list/tag/delete documents); Tracer corpus cross-evidence (verdicts cite other corpus documents); Fraktur- and Kurrent-tuned prompt presets + registry expansion after accuracy comparison on real scans; batch OCR; entity merging/disambiguation UI; `entities` table + DDL; exports (CSV, GEXF for Gephi); IIIF manifest ingestion.
 
 ---
 
 ## 7. Env vars (Vercel + `.env.local`)
 
 ```
-GOOGLE_GENERATIVE_AI_API_KEY=   SUPABASE_URL=   SUPABASE_SERVICE_ROLE_KEY=
-HF_TOKEN=   SEARCH_API_KEY=
-DEP_SEARCH_MODE=live  DEP_FETCH_MODE=live  DEP_NGRAM_MODE=cached
-DEP_WIKTIONARY_MODE=cached  DEP_HF_MODE=live
+GOOGLE_GENERATIVE_AI_API_KEY=   GEMINI_MODEL=gemini-3.6-flash
+SUPABASE_URL=   SUPABASE_SERVICE_ROLE_KEY=
+HF_TOKEN=   HF_FORMALIZER_MODEL=Qwen/Qwen3-4B-Instruct-2507:nscale
+HF_OCR_MODEL=Qwen/Qwen3-VL-30B-A3B-Instruct
+SEARCH_API_KEY=   SEARCH_PROVIDER=tavily   BRAVE_SEARCH_API_KEY=(optional)
+DEP_SEARCH_MODE=live  DEP_FETCH_MODE=live  DEP_GEMINI_MODE=live  DEP_HF_MODE=live
+DEP_OCR_MODE=live  DEP_NER_MODE=live  DEP_NGRAM_MODE=cached  DEP_WIKTIONARY_MODE=cached
 ```
-Never commit keys; service-role key is server-only; `db.ts` must `import "server-only"`.
+Never commit keys; service-role key is server-only; `db.ts` must `import "server-only"`; env access only via `lib/env.ts`.
