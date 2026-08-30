@@ -16,12 +16,14 @@ import { z } from "zod";
 import {
   ClaimSchema,
   LogicalFormSchema,
+  OcrResultSchema,
   SourceVerdictSchema,
   StanceClusterSchema,
   TickerEventSchema,
   type Claim,
   type DepMode,
   type LogicalForm,
+  type OcrResult,
   type SourceVerdict,
   type StanceCluster,
   type TickerEvent,
@@ -36,6 +38,23 @@ export const ExtractRequestSchema = z.object({
 
 export const StanceRequestSchema = z.object({
   question: z.string().min(1, "a contested question is required").max(500),
+});
+
+/**
+ * POST /api/ocr body (SPEC v2 §5, N°00). `script`/`language` are hints that
+ * shape the prompt (Scriptorium's toggles) — when omitted the model
+ * determines them itself; coerceOcrResult() prefers the request's values
+ * when given (CLAUDE.md eng rule 1: server truth, never a model guess,
+ * once the human has actually stated it).
+ */
+export const OcrRequestSchema = z.object({
+  imageDataUrl: z
+    .string()
+    .min(1, "an image is required")
+    .refine((v) => v.startsWith("data:image/"), "must be a data:image/… URL"),
+  model: z.string().min(1).optional(),
+  script: OcrResultSchema.shape.script.optional(),
+  language: OcrResultSchema.shape.language.optional(),
 });
 
 /** POST /api/events body — the server stamps `at`, so the client never sends it. */
@@ -72,6 +91,17 @@ export const JudgeWire = z.object({
 export const ClustersWire = z.object({
   clusters: z.array(StanceClusterSchema),
 });
+
+/**
+ * OCR output: documentId is server-stamped after the call (a fresh
+ * correlation id per request, same pattern as ExtractionWire — NOT tied to
+ * a persisted `documents` row until "Fix in the record" writes one).
+ * `model` IS part of this wire: hfVision()'s withModel() stamps the model
+ * that actually answered onto the raw completion before validation, so it
+ * round-trips correctly through dep_cache/fixtures/ocr/ (SPEC §3b) — the
+ * model itself never has to self-report it.
+ */
+export const OcrWire = OcrResultSchema.omit({ documentId: true });
 
 /* ------------------------------------------- dependency wire coercers ----- */
 
@@ -221,6 +251,30 @@ export function coerceClusters(data: unknown): StanceCluster[] | null {
     return { ...cluster, id, sources };
   });
   const parsed = z.array(StanceClusterSchema).safeParse(prepared);
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * unknown (OcrWire-shaped live/cached/fixture payload) → OcrResult stamped
+ * with a fresh documentId, or null when off-contract. The request's own
+ * script/language — when the caller supplied them — win over whatever the
+ * model reported: a human-stated toggle is server truth once given (CLAUDE.md
+ * eng rule 1), the model's own determination is only the fallback for the
+ * omitted case.
+ */
+export function coerceOcrResult(
+  data: unknown,
+  documentId: string,
+  hints: { script?: OcrResult["script"]; language?: OcrResult["language"] },
+): OcrResult | null {
+  if (!isRecord(data)) return null;
+  const candidate = {
+    ...data,
+    documentId,
+    script: hints.script ?? data.script,
+    language: hints.language ?? data.language,
+  };
+  const parsed = OcrResultSchema.safeParse(candidate);
   return parsed.success ? parsed.data : null;
 }
 
