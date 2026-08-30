@@ -1,12 +1,17 @@
 /**
  * POST /api/stance — contested question → StanceCluster[] (SPEC §5, N°02).
  *
- * Pipeline: search dep (n=8) → fetch+extract each (parallel, capped) → ONE
- * Gemini clustering call over all extracts → StanceCluster[]. A page that
- * cannot be fetched still enters the pool on its snippet (an empty
- * extraction is a result — DATA-CAVEATS §2); a search lacuna is the page's
- * LACUNA state, not a crash.
+ * Pool source (SPEC v2 §5 — corpus-first is the heart of the rescope):
+ *   documentIds present & non-empty → the caller's own corpus selection
+ *     (Map's multi-select, already merged): read those documents' text
+ *     directly via lib/db.ts, search dep SKIPPED ENTIRELY.
+ *   otherwise → the v1 web path: search dep (n=8) → fetch+extract each
+ *     (parallel, capped). A page that cannot be fetched still enters the
+ *     pool on its snippet (an empty extraction is a result — DATA-CAVEATS
+ *     §2); a search lacuna is the page's LACUNA state, not a crash.
+ * Either way, ONE Gemini clustering call runs over the assembled pool.
  */
+import { getDocumentById } from "@/lib/db";
 import { gemini } from "@/lib/engine/llm";
 import { normalizeQuery, notWiredLive, recordEvent, runDep } from "../_lib/adapter";
 import {
@@ -46,34 +51,68 @@ way for the same kind of reason. For each cluster return:
   "deployment statistics", "cost modeling", "normative argument").
 Every source belongs to exactly one cluster. Return only the structured output.`;
 
+interface PoolSource {
+  url: string;
+  title?: string;
+  text: string;
+}
+
+/** Corpus-first pool (SPEC v2 §5): read the caller's own selection
+ * directly, search dep SKIPPED ENTIRELY. A document missing or empty of
+ * text just drops from the pool — never a crash, never a retry. */
+async function corpusPool(documentIds: string[]): Promise<PoolSource[]> {
+  const docs = await Promise.all(documentIds.map((id) => getDocumentById(id)));
+  const pool: PoolSource[] = [];
+  for (const doc of docs) {
+    if (!doc || !doc.raw_text || doc.raw_text.trim() === "") continue;
+    pool.push({
+      url: doc.source_url ?? `document:${doc.id}`,
+      title: doc.source_url ?? doc.id,
+      text: doc.raw_text,
+    });
+  }
+  return pool;
+}
+
 export const POST = guard(async (req) => {
   const body = await readJson(req);
   if (!body.ok) return invalidJson();
 
   const parsed = StanceRequestSchema.safeParse(body.body);
   if (!parsed.success) return badRequest(zodIssues(parsed.error));
-  const { question } = parsed.data;
+  const { question, documentIds } = parsed.data;
 
-  /* 1 — search (n=8) */
-  const search = await runDep("search", normalizeQuery(question), notWiredLive("search"));
-  if (!search.ok) return lacuna(search.lacuna.dep, search.lacuna.reason);
-  const results = coerceSearchResults(search.data).slice(0, SOURCE_CAP);
-  if (results.length === 0) {
-    return lacuna("search", "search returned no sources for this question");
-  }
+  let sources: PoolSource[];
 
-  /* 2 — fetch + extract in parallel; fall back to the search snippet */
-  const pool = await Promise.all(
-    results.map(async (r) => {
-      const fetched = await runDep("fetch", r.url, notWiredLive("fetch"));
-      const page = fetched.ok ? coercePage(fetched.data, r.url) : null;
-      const text = page?.text ?? r.snippet ?? "";
-      return { url: r.url, title: page?.title ?? r.title, text };
-    }),
-  );
-  const sources = pool.filter((s) => s.text.trim().length > 0);
-  if (sources.length === 0) {
-    return lacuna("fetch", "no source in the pool could be extracted or summarized");
+  if (documentIds && documentIds.length > 0) {
+    /* corpus-first pool — no search, no fetch */
+    sources = await corpusPool(documentIds);
+    if (sources.length === 0) {
+      return lacuna("db", "none of the selected corpus documents could be loaded or had text");
+    }
+  } else {
+    /* v1 web-search pool */
+    /* 1 — search (n=8) */
+    const search = await runDep("search", normalizeQuery(question), notWiredLive("search"));
+    if (!search.ok) return lacuna(search.lacuna.dep, search.lacuna.reason);
+    const results = coerceSearchResults(search.data).slice(0, SOURCE_CAP);
+    if (results.length === 0) {
+      return lacuna("search", "search returned no sources for this question");
+    }
+
+    /* 2 — fetch + extract in parallel; fall back to the search snippet */
+    const pool = await Promise.all(
+      results.map(async (r) => {
+        const fetched = await runDep("fetch", r.url, notWiredLive("fetch"));
+        const page = fetched.ok ? coercePage(fetched.data, r.url) : null;
+        const text = page?.text ?? r.snippet ?? "";
+        return { url: r.url, title: page?.title ?? r.title, text };
+      }),
+    );
+    sources = pool.filter((s) => s.text.trim().length > 0);
+    if (sources.length === 0) {
+      return lacuna("fetch", "no source in the pool could be extracted or summarized");
+    }
   }
 
   /* 3 — one clustering call over the whole pool */
