@@ -312,6 +312,271 @@ function stripFences(text: string): string {
     .trim();
 }
 
+/* ── Vision (Scriptorium OCR, N°00) — hfVision(): its own top-level ladder ─
+ *
+ * DATA-CAVEATS addendum 2 §10: "Ladder: live HF VLM → live Gemini vision
+ * (same prompt, same flat output shape) → dep_cache → fixtures/ocr/<slug>.
+ * json → LACUNA." This is its OWN dep ('ocr' in dep_cache and
+ * fixtures/ocr/), content-hash cached like gemini()/hf() (re-rendering a
+ * transcription costs zero quota), but with a two-model LIVE rung: the
+ * Gemini-vision fallback happens INSIDE the live attempt, before the ladder
+ * ever descends to cached/fixture. The model is per-request overridable —
+ * swapping OCR models is a string change (SPEC v2 §4).
+ */
+
+export interface VisionCall<T> {
+  /** Output contract — flat shapes only, same rule as LlmCall. */
+  schema: z.ZodType<T>;
+  /** Base64 data URL of the page image (client downscaled ≤1600px, SPEC v2 §5). */
+  imageDataUrl: string;
+  prompt: string;
+  system?: string;
+  /** Per-request override; defaults to env.HF_OCR_MODEL (SPEC v2 §4 — swap-on-the-fly). */
+  model?: string;
+  /** fixtures/ocr/<fixture>.json — floor of the ladder; falls back to default.json. */
+  fixture?: string;
+}
+
+function visionPromptWith(call: VisionCall<unknown>, repair?: string): string {
+  if (!repair) return call.prompt;
+  return `${call.prompt}\n\nYour previous response failed schema validation with this error:\n${repair}\n\nReturn ONLY a corrected response that satisfies the schema exactly. No prose.`;
+}
+
+/**
+ * Stamp the model that ACTUALLY produced this result onto the raw object
+ * (SPEC §4: the OCR ProvenanceChip names the model — provenance in the
+ * scholarly sense). Server truth, never the model's own self-report: this
+ * runs whether or not the completion included a "model" key, so whatever
+ * the model guessed there is unconditionally overwritten. If the caller's
+ * schema has no such field, zod drops it silently on parse — harmless.
+ */
+function withModel(raw: unknown, model: string): unknown {
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
+    return { ...(raw as Record<string, unknown>), model };
+  }
+  return raw; // malformed shape — schema.safeParse rejects it downstream
+}
+
+function ocrContentHash<T>(call: VisionCall<T>, model: string): string {
+  return sha256(
+    JSON.stringify({
+      dep: "ocr",
+      model,
+      system: call.system ?? "",
+      prompt: call.prompt,
+      // Hash the image itself, not the full data URL, to keep the key small.
+      image: sha256(call.imageDataUrl),
+      schema: schemaFingerprint(call.schema),
+    }),
+  );
+}
+
+async function hfVisionInvoke<T>(
+  call: VisionCall<T>,
+  model: string,
+  signal: AbortSignal,
+  repair?: string,
+): Promise<unknown> {
+  const schemaJson = schemaFingerprint(call.schema);
+  const system = [
+    call.system,
+    `Respond with ONLY minified JSON that validates against this JSON Schema — no prose, no markdown, no code fences:\n${schemaJson}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const res = await fetch(HF_ROUTER_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.HF_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: system },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: visionPromptWith(call, repair) },
+            { type: "image_url", image_url: { url: call.imageDataUrl } },
+          ],
+        },
+      ],
+      temperature: 0,
+      max_tokens: 4096,
+    }),
+    signal,
+  });
+  if (!res.ok) {
+    throw new HttpFailure(res.status, `HF router responded ${res.status}`);
+  }
+  const body = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const text = body.choices?.[0]?.message?.content;
+  if (typeof text !== "string" || text.trim() === "") {
+    throw new SchemaFailure("empty completion from HF router");
+  }
+  try {
+    return withModel(JSON.parse(stripFences(text)), model);
+  } catch {
+    throw new SchemaFailure(
+      `completion was not valid JSON (starts: ${stripFences(text).slice(0, 120)})`,
+    );
+  }
+}
+
+async function geminiVisionInvoke<T>(
+  call: VisionCall<T>,
+  signal: AbortSignal,
+  repair?: string,
+): Promise<unknown> {
+  const result = await generateText({
+    model: getGoogle()(env.GEMINI_MODEL),
+    system: call.system,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: visionPromptWith(call, repair) },
+          { type: "image", image: call.imageDataUrl },
+        ],
+      },
+    ],
+    output: Output.object({ schema: call.schema }),
+    abortSignal: signal,
+    maxRetries: 0,
+    providerOptions: {
+      google: { thinkingConfig: { thinkingLevel: "low" } },
+    },
+  });
+  // Gemini's structured output already validated result.output against
+  // call.schema — if that schema happens to require "model", constrained
+  // decoding forces SOME string there. withModel() overwrites it with the
+  // real answer regardless, so the guess (if any) is never trusted.
+  return withModel(result.output, env.GEMINI_MODEL);
+}
+
+/**
+ * One live rung, two models: HF vision primary (one repair re-prompt on
+ * parse failure), Gemini vision fallback INSIDE live when HF's attempt (incl.
+ * its repair) still fails — DATA-CAVEATS addendum 2 §10. Anything beyond
+ * this throws, so the ladder above falls to cached/fixture/lacuna.
+ */
+async function callVisionWithPolicy<T>(
+  call: VisionCall<T>,
+  model: string,
+  signal: AbortSignal,
+): Promise<T> {
+  const parseOrThrow = (raw: unknown): T => {
+    const parsed = call.schema.safeParse(raw);
+    if (!parsed.success) throw new SchemaFailure(z.prettifyError(parsed.error));
+    return parsed.data;
+  };
+
+  try {
+    try {
+      return parseOrThrow(await hfVisionInvoke(call, model, signal));
+    } catch (err) {
+      if (!isParseFailure(err)) throw err;
+      console.warn("[hfVision] HF parse failed — one repair re-prompt");
+      return parseOrThrow(await hfVisionInvoke(call, model, signal, errText(err)));
+    }
+  } catch (err) {
+    console.warn(`[hfVision] HF vision failed (${errText(err)}) — Gemini vision fallback rung`);
+  }
+
+  try {
+    return parseOrThrow(await geminiVisionInvoke(call, signal));
+  } catch (err) {
+    if (!isParseFailure(err)) throw err;
+    console.warn("[hfVision] Gemini vision parse failed — one repair re-prompt");
+    return parseOrThrow(await geminiVisionInvoke(call, signal, errText(err)));
+  }
+}
+
+async function serveOcrFixture<T>(
+  call: VisionCall<T>,
+  lacunaKey: string,
+  tried: DepMode[],
+  parse: (payload: unknown) => T | undefined,
+): Promise<DepResult<T>> {
+  tried.push("fixture");
+  const slug = call.fixture ?? "default";
+  const fixture = await readFixtureWithDefault("ocr", slug);
+  if (fixture !== undefined) {
+    const data = parse(fixture);
+    if (data !== undefined) return { ok: true, data, mode: "fixture" };
+    console.warn(`[hfVision] fixture ${slug} failed schema — LACUNA`);
+    return makeLacuna("ocr", lacunaKey, `fixture ${slug} failed schema validation`, tried);
+  }
+  console.warn(`[hfVision] fixture miss (${slug}) — LACUNA`);
+  return makeLacuna(
+    "ocr",
+    lacunaKey,
+    `no response at any rung (fixtures/ocr/${slug}.json missing)`,
+    tried,
+  );
+}
+
+export async function hfVision<T>(call: VisionCall<T>): Promise<DepResult<T>> {
+  const mode = depMode("ocr");
+  const model = call.model ?? env.HF_OCR_MODEL;
+  const key = ocrContentHash(call, model);
+  const lacunaKey = `${call.fixture ?? "default"}#${key.slice(0, 12)}`;
+  const tried: DepMode[] = [];
+
+  const parse = (payload: unknown): T | undefined => {
+    const parsed = call.schema.safeParse(payload);
+    return parsed.success ? parsed.data : undefined;
+  };
+
+  /* fixture mode: canned response, zero network, zero keys */
+  if (mode === "fixture") {
+    return serveOcrFixture(call, lacunaKey, tried, parse);
+  }
+
+  /* content-hash cache, both modes: in-memory first, then dep_cache */
+  const hit = memoryCache.get(key);
+  if (hit) {
+    const data = parse(hit.data);
+    if (data !== undefined)
+      return { ok: true, data, mode: "cached", fetchedAt: hit.at };
+  }
+  tried.push("cached");
+  const row = await readDepCache("ocr", key);
+  if (row) {
+    const data = parse(row.payload);
+    if (data !== undefined) {
+      memoryCache.set(key, { data, at: row.fetched_at });
+      return { ok: true, data, mode: "cached", fetchedAt: row.fetched_at };
+    }
+  }
+
+  /* live rung — HF vision primary, Gemini vision fallback INSIDE live */
+  if (mode === "live") {
+    tried.push("live");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), DEP_TIMEOUT_MS.ocr);
+    try {
+      const data = await callVisionWithPolicy(call, model, controller.signal);
+      const at = new Date().toISOString();
+      memoryCache.set(key, { data, at });
+      await writeDepCache("ocr", key, data); // no-ops keylessly, never throws
+      return { ok: true, data, mode: "live" };
+    } catch (err) {
+      console.warn(`[hfVision] live failed (${errText(err)}) — falling to fixture`);
+    } finally {
+      clearTimeout(timer);
+    }
+  } else {
+    console.warn("[hfVision] cached miss — falling to fixture");
+  }
+
+  return serveOcrFixture(call, lacunaKey, tried, parse);
+}
+
 export async function hf<T>(call: LlmCall<T>): Promise<DepResult<T>> {
   // LACUNA(lane-a): direct fetch to the OpenAI-compatible router endpoint —
   // @ai-sdk/openai-compatible is not in SPEC §1's dependency list; if A
