@@ -1,0 +1,88 @@
+{
+  "clusters": [
+    {
+      "id": "cluster-prosperity-and-economic-gains",
+      "label": "Improved Living Standards and Economic Prosperity",
+      "sources": [
+        {
+          "id": "src-wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Fordism",
+          "title": "Fordism - Wikipedia",
+          "extractedText": "Efficiency both decreased the price of cars and allowed Ford to increase his workers' wages, so that common workers could buy the cars they built.",
+          "stanceClusterId": "cluster-prosperity-and-economic-gains"
+        },
+        {
+          "id": "src-ebsco",
+          "url": "https://www.ebsco.com/research-starters/social-sciences-and-humanities/taylorism-fordism-and-post-fordism",
+          "title": "Taylorism, Fordism, and Post-Fordism | Research Starters | EBSCO",
+          "extractedText": "Ford believed manufacturing should be efficient enough, and workers paid enough, that a worker could afford to buy what they produced — a prosperity later eroded as manufacturers backed away from high wages.",
+          "stanceClusterId": "cluster-prosperity-and-economic-gains"
+        },
+        {
+          "id": "src-boston-review",
+          "url": "https://www.bostonreview.net/articles/justin-h-vassallo-world-henry-ford-shaped",
+          "title": "The World Henry Ford Made",
+          "extractedText": "By embedding Fordist mass production within a steered market economy, Fordism's diffusion accelerated industrial growth and stimulated employment well beyond Ford's own factories.",
+          "stanceClusterId": "cluster-prosperity-and-economic-gains"
+        }
+      ],
+      "coreClaimIds": [
+        "claim-higher-wages-purchasing-power",
+        "claim-broad-economic-growth"
+      ],
+      "agreesWith": [],
+      "disputes": [
+        "cluster-labor-degradation-and-alienation"
+      ],
+      "evidenceKind": "wage trends, consumer purchasing power, and macroeconomic growth data"
+    },
+    {
+      "id": "cluster-labor-degradation-and-alienation",
+      "label": "Work Degradation and Monotonous Alienation",
+      "sources": [
+        {
+          "id": "src-umich-autolife",
+          "url": "http://www.autolife.umd.umich.edu/Labor/L_Overview/L_Overview3.htm",
+          "title": "The Degradation of Work Revisited: Labor under Mass Production: Ford and the Five Dollar Day",
+          "extractedText": "The reorganization of work at Ford's Highland Park factory created the repetitive, monotonous, and alienating work of the modern industrial world, even as workers reluctantly accepted the new routines for the high wages on offer.",
+          "stanceClusterId": "cluster-labor-degradation-and-alienation"
+        }
+      ],
+      "coreClaimIds": [
+        "claim-deskilling-and-alienation"
+      ],
+      "agreesWith": [],
+      "disputes": [
+        "cluster-prosperity-and-economic-gains"
+      ],
+      "evidenceKind": "labor-process critique and factory workplace analysis"
+    },
+    {
+      "id": "cluster-mixed-outcomes-and-inequality",
+      "label": "Ambiguous Trade-Offs and Heightened Inequality",
+      "sources": [
+        {
+          "id": "src-willamette",
+          "url": "https://people.willamette.edu/~fthompso/MgmtCon/Fordism_&_Postfordism.html",
+          "title": "Fordism & Postfordism",
+          "extractedText": "Despite gains to unskilled industrial workers — a forty percent reduction in working hours and a twenty-five-fold increase in wages — critics from Frederick Taylor to Antonio Gramsci attacked the deskilling of assembly-line labor.",
+          "stanceClusterId": "cluster-mixed-outcomes-and-inequality"
+        },
+        {
+          "id": "src-new-learning",
+          "url": "https://newlearningonline.com/new-learning/chapter-3/fordism-the-modern-past",
+          "title": "Fordism: The modern past - New Learning Online",
+          "extractedText": "Workers entering industrial employment experienced new-found affluence, but this was a deeply unequal society: employers profited hugely more from the productivity gains than the workers who produced them.",
+          "stanceClusterId": "cluster-mixed-outcomes-and-inequality"
+        }
+      ],
+      "coreClaimIds": [
+        "claim-affluence-versus-deskilling",
+        "claim-unequal-distribution-of-gains"
+      ],
+      "agreesWith": [],
+      "disputes": [],
+      "evidenceKind": "socio-economic history and comparative inequality metrics"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Harrang",
+    "kind": "person",
+    "mentions": 6
+  },
+  {
+    "name": "Tante Renate",
+    "kind": "person",
+    "mentions": 7
+  },
+  {
+    "name": "Anneliese",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Ulrich",
+    "kind": "person",
+    "mentions": 2
+  },
+  {
+    "name": "Albert Eulenburg",
+    "kind": "person",
+    "mentions": 1
+  }
+]
