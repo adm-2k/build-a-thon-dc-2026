@@ -1,14 +1,35 @@
 /**
- * lib/engine/graph.ts — StanceCluster[] → Cytoscape elements (SPEC §5, Map).
+ * lib/engine/graph.ts — StanceCluster[] → Cytoscape elements (SPEC §5, Map)
+ * AND Entity[] → co-occurrence elements (SPEC §5, Prosopon N°04).
  *
  * OWNERSHIP: this file belongs to Lane C after the scaffold (ORCHESTRATION
- * §2.3 / §8 T6) — announce changes via a CROSS-LANE note in docs/HANDOFF.md.
+ * §2.3 / §8 T6) — announce changes via a CROSS-LANE note in docs/HANDOFF.md
+ * (done for this v2 addition, 2026-08-30).
  *
  * Deliberately minimal and client-safe: no env, no db, no colors. Node fill
- * comes from --chart-* in FIXED cluster order (CLAUDE.md rule 7) — the UI
- * maps `data.order` → the token; a generated hue here would be a defect.
+ * comes from --chart-* in FIXED order (CLAUDE.md rule 7) — the UI maps a
+ * node's order/kind index → the token; a generated hue here would be a
+ * defect. Map uses first-appearance cluster order; Prosopon uses the closed,
+ * globally-fixed entity kind taxonomy (ENTITY_KIND_ORDER below).
  */
 import type { StanceCluster } from "./schemas";
+
+/**
+ * LACUNA(lane-map): Entity isn't in lib/engine/schemas.ts yet — it lands
+ * there via Lane A's SPEC v2 charter item 1 (schemas.ts is Lane A's sole
+ * commit surface, ORCHESTRATION §2.3). This mirrors SPEC §3's Entity shape
+ * verbatim as an interim, file-local type so Prosopon can be built now.
+ * Swap this for `import type { Entity } from "./schemas";` the moment Lane
+ * A merges it — no other code in this file should need to change.
+ */
+export interface Entity {
+  id: string;
+  documentId: string;
+  name: string;
+  kind: "person" | "place" | "org" | "work" | "concept";
+  /** Mention count within `documentId` only — NOT the corpus-wide total. */
+  mentions: number;
+}
 
 export interface ClusterNodeData {
   id: string;
@@ -79,6 +100,123 @@ export function stanceClustersToElements(
       }
     }
   }
+
+  return [...nodes, ...edges];
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Prosopon (N°04) — Entity[] → typed co-occurrence network (SPEC §5)
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * The entity kind taxonomy is CLOSED (SPEC §3, DATA-CAVEATS addendum §11)
+ * and its --chart-* mapping is a GLOBALLY fixed order — unlike Map's
+ * per-question, first-appearance cluster order, every Prosopon render colors
+ * "person" the same plate. Never reorder; a 6th kind is a defect, not an
+ * extension point (fold it into "concept" upstream, in the NER prompt).
+ */
+export const ENTITY_KIND_ORDER = [
+  "person",
+  "place",
+  "org",
+  "work",
+  "concept",
+] as const;
+
+export interface EntityNodeData {
+  /** `${kind}:${name}` — the exact-match merge key (SPEC §5: Round 2 does disambiguation). */
+  id: string;
+  label: string;
+  kind: Entity["kind"];
+  /** Sum of per-document `mentions` across the whole corpus — drives node size. */
+  mentions: number;
+  /** Distinct documents this entity appears in — drives the margin register. */
+  documentCount: number;
+}
+
+export interface CooccurEdgeData {
+  id: string;
+  source: string;
+  target: string;
+  /** Number of documents both endpoints co-occur in (SPEC §5). */
+  weight: number;
+}
+
+export type EntityElement =
+  | { group: "nodes"; data: EntityNodeData }
+  | { group: "edges"; data: CooccurEdgeData };
+
+/**
+ * Merge Entity[] (one row per entity per document, SPEC §3) into a
+ * co-occurrence network: nodes merge on exact name+kind (case-sensitive —
+ * over-merging fabricates a network, DATA-CAVEATS addendum §11), sized by
+ * total mentions; edges connect entities that share at least one document,
+ * weighted by the number of documents shared. Two entities that never share
+ * a document never get an edge — there is no transitive/global edge.
+ */
+export function entitiesToElements(entities: Entity[]): EntityElement[] {
+  type NodeAcc = {
+    kind: Entity["kind"];
+    name: string;
+    mentions: number;
+    documentIds: Set<string>;
+  };
+  const nodeKey = (e: Pick<Entity, "kind" | "name">) => `${e.kind}:${e.name}`;
+
+  const nodeMap = new Map<string, NodeAcc>();
+  for (const e of entities) {
+    const key = nodeKey(e);
+    const existing = nodeMap.get(key);
+    if (existing) {
+      existing.mentions += e.mentions;
+      existing.documentIds.add(e.documentId);
+    } else {
+      nodeMap.set(key, {
+        kind: e.kind,
+        name: e.name,
+        mentions: e.mentions,
+        documentIds: new Set([e.documentId]),
+      });
+    }
+  }
+
+  const nodes: EntityElement[] = Array.from(nodeMap.entries()).map(([id, n]) => ({
+    group: "nodes",
+    data: {
+      id,
+      label: n.name,
+      kind: n.kind,
+      mentions: n.mentions,
+      documentCount: n.documentIds.size,
+    },
+  }));
+
+  // documentId -> set of node keys mentioned in that document (co-occurrence pool)
+  const byDocument = new Map<string, Set<string>>();
+  for (const e of entities) {
+    const set = byDocument.get(e.documentId) ?? new Set<string>();
+    set.add(nodeKey(e));
+    byDocument.set(e.documentId, set);
+  }
+
+  const weight = new Map<string, number>(); // "a~b" (sorted) -> shared-document count
+  for (const set of byDocument.values()) {
+    const keys = Array.from(set);
+    for (let i = 0; i < keys.length; i++) {
+      for (let j = i + 1; j < keys.length; j++) {
+        const pairKey = [keys[i], keys[j]].sort().join("~");
+        weight.set(pairKey, (weight.get(pairKey) ?? 0) + 1);
+      }
+    }
+  }
+
+  const edges: EntityElement[] = Array.from(weight.entries()).map(([pairKey, w]) => {
+    const [source, target] = pairKey.split("~");
+    return {
+      group: "edges",
+      data: { id: `edge:${pairKey}`, source, target, weight: w },
+    };
+  });
 
   return [...nodes, ...edges];
 }
