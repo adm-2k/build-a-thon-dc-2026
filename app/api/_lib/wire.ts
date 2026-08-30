@@ -48,6 +48,17 @@ export const StanceRequestSchema = z.object({
  * determines them itself; coerceOcrResult() prefers the request's values
  * when given (CLAUDE.md eng rule 1: server truth, never a model guess,
  * once the human has actually stated it).
+ *
+ * `fixture` names the corpus slug for the fixture-mode floor (e.g.
+ * "eb1911-rationalism" — see fixtures/ocr/*.json). Deliberately NOT
+ * defaulted to any one demo image server-side: substituting an unrelated
+ * page's transcription for whatever the caller actually uploaded would be
+ * a silent illusion (DATA-CAVEATS judge-facing summary: "honesty over
+ * illusion") — an unnamed request in fixture mode correctly bottoms out
+ * at a typed LACUNA (no fixtures/ocr/default.json exists, nor should one
+ * fake a match). Callers that know which corpus page they're re-running
+ * (Scriptorium, once it tracks a corpus slug) pass this to get the real
+ * canned transcription instead.
  */
 export const OcrRequestSchema = z.object({
   imageDataUrl: z
@@ -57,6 +68,7 @@ export const OcrRequestSchema = z.object({
   model: z.string().min(1).optional(),
   script: OcrResultSchema.shape.script.optional(),
   language: OcrResultSchema.shape.language.optional(),
+  fixture: z.string().min(1).optional(),
 });
 
 /**
