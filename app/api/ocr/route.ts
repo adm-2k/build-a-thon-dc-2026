@@ -11,8 +11,10 @@
  * /api/extract — NOT a persisted `documents` row. Persisting happens at
  * "Fix in the record" (POST /api/documents, next charter item).
  *
- * Answers in fixture mode with no keys (fixtures/ocr/default.json, once
- * Lane D lands it — until then a typed LACUNA, never a crash).
+ * Answers in fixture mode with no keys when the caller names a corpus slug
+ * (`fixture`, e.g. "eb1911-rationalism" — fixtures/ocr/*.json, Lane D's
+ * charter item 1); an unnamed request correctly bottoms out at a typed
+ * LACUNA rather than silently substituting an unrelated demo page.
  */
 import { hfVision } from "@/lib/engine/llm";
 import {
@@ -68,7 +70,7 @@ export const POST = guard(async (req) => {
 
   const parsed = OcrRequestSchema.safeParse(body.body);
   if (!parsed.success) return badRequest(zodIssues(parsed.error));
-  const { imageDataUrl, model, script, language } = parsed.data;
+  const { imageDataUrl, model, script, language, fixture } = parsed.data;
 
   const result = await hfVision({
     schema: OcrWire,
@@ -76,6 +78,7 @@ export const POST = guard(async (req) => {
     prompt: buildPrompt(script, language),
     imageDataUrl,
     model,
+    fixture,
   });
   if (!result.ok) return lacuna(result.dep, result.reason);
 
