@@ -129,6 +129,7 @@ export function TracerClient() {
 
   const [corpusDocs, setCorpusDocs] = useState<CorpusDocument[] | null>(null);
   const [corpusError, setCorpusError] = useState<string | null>(null);
+  const [corpusLoading, setCorpusLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,6 +140,7 @@ export function TracerClient() {
       } else {
         setCorpusError(outcome.reason);
       }
+      setCorpusLoading(false);
     });
     return () => {
       cancelled = true;
@@ -196,6 +198,8 @@ export function TracerClient() {
   const weakCount = entries.filter((e) => e.verdict?.status === "weakly_sourced").length;
   const untraceableCount = entries.filter((e) => e.verdict?.status === "untraceable").length;
   const verdictsIn = sourcedCount + weakCount + untraceableCount;
+  const resolvedCount = entries.filter((e) => !e.formalizing && !e.tracing).length;
+  const stillResolving = entries.length > 0 && resolvedCount < entries.length;
 
   return (
     <div
@@ -247,14 +251,28 @@ export function TracerClient() {
         {extractError ? <p style={errorLine}>{extractError}</p> : null}
 
         <section aria-label="Claims" style={{ marginTop: "calc(var(--space-unit) * 3)" }}>
-          <MicroLabel
-            tone="dim"
-            as="h2"
-            style={{ display: "block", marginBottom: "calc(var(--space-unit) * 2)" }}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: "calc(var(--space-unit) * 2)",
+            }}
           >
-            Claims
-          </MicroLabel>
-          {entries.length === 0 ? (
+            <MicroLabel tone="dim" as="h2">
+              Claims
+            </MicroLabel>
+            {stillResolving ? (
+              <MicroLabel tone="dim">
+                {resolvedCount} of {entries.length} resolved
+              </MicroLabel>
+            ) : null}
+          </div>
+          {extracting ? (
+            <Compartment>
+              <CollatingState />
+            </Compartment>
+          ) : entries.length === 0 ? (
             <Compartment>
               <LacunaState note="Paste a source text and trace its claims to open the record." />
             </Compartment>
@@ -282,7 +300,9 @@ export function TracerClient() {
         </MarginSection>
 
         <MarginSection label="Corpus">
-          {corpusDocs && corpusDocs.length > 0 ? (
+          {corpusLoading ? (
+            <CollatingState />
+          ) : corpusDocs && corpusDocs.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "calc(var(--space-unit) * 0.75)" }}>
               {corpusDocs.map((doc) => (
                 <button
