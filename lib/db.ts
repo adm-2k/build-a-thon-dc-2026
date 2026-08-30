@@ -130,6 +130,22 @@ export async function listDocuments(limit = 100): Promise<DocumentRow[]> {
   return (data ?? []) as DocumentRow[];
 }
 
+/** One document by id — /api/ner looks up the text to run NER on from the
+ * id alone (SPEC v2 §5: the client sends {documentId}, never the text
+ * itself). null on any miss (keyless, not-found, or error) — the route
+ * turns that into a LACUNA state. */
+export async function getDocumentById(id: string): Promise<DocumentRow | null> {
+  const c = getClient();
+  if (!c) return noopWarn("getDocumentById"), null;
+  const { data, error } = await c
+    .from("documents")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return opWarn("getDocumentById", error), null;
+  return (data as DocumentRow | null) ?? null;
+}
+
 /* ── claims ─────────────────────────────────────────────────────────────── */
 
 export async function insertClaims(

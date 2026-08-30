@@ -16,6 +16,7 @@ import { z } from "zod";
 import {
   ClaimSchema,
   DocumentSchema,
+  EntitySchema,
   LogicalFormSchema,
   OcrResultSchema,
   SourceVerdictSchema,
@@ -24,6 +25,7 @@ import {
   type Claim,
   type DepMode,
   type Document,
+  type Entity,
   type LogicalForm,
   type OcrResult,
   type SourceVerdict,
@@ -40,6 +42,20 @@ export const ExtractRequestSchema = z.object({
 
 export const StanceRequestSchema = z.object({
   question: z.string().min(1, "a contested question is required").max(500),
+});
+
+/**
+ * POST /api/ner body (SPEC v2 §5, N°04) — the client sends only the id
+ * (already-merged Prosopon page: `{documentId}`); the route looks up the
+ * document's text itself. `fixture` is an optional forward-compat hook
+ * (same rationale as OcrRequestSchema.fixture): no slug is guessed
+ * server-side from a random document id, so an unnamed request in fixture
+ * mode correctly bottoms out at a typed LACUNA rather than attributing an
+ * unrelated corpus page's entities to the wrong document.
+ */
+export const NerRequestSchema = z.object({
+  documentId: z.string().min(1, "a document id is required"),
+  fixture: z.string().min(1).optional(),
 });
 
 /**
@@ -138,6 +154,16 @@ export const ClustersWire = z.object({
  * model itself never has to self-report it.
  */
 export const OcrWire = OcrResultSchema.omit({ documentId: true });
+
+/**
+ * NER output — a BARE array, not `{ entities: [...] }`: matches Lane D's
+ * already-committed fixtures/ner/*.json shape exactly (registered in
+ * scripts/seed-fixtures.ts as `z.array(EntitySchema.omit({id,documentId}))`)
+ * — the wire schema here must equal that on-disk shape or the fixture
+ * floor fails validation for everyone. `id`/`documentId` are server-stamped
+ * after the call, same pattern as ExtractionWire.
+ */
+export const NerWire = z.array(EntitySchema.omit({ id: true, documentId: true }));
 
 /* ------------------------------------------- dependency wire coercers ----- */
 
@@ -312,6 +338,28 @@ export function coerceOcrResult(
   };
   const parsed = OcrResultSchema.safeParse(candidate);
   return parsed.success ? parsed.data : null;
+}
+
+/**
+ * unknown (NerWire-shaped live/cached/fixture payload — a bare array) →
+ * Entity[] stamped with server ids and the requesting documentId, or null
+ * when off-contract. Malformed individual rows drop rather than failing
+ * the whole batch (DATA-CAVEATS addendum 2 §11: under-merging/under-listing
+ * is honest, inventing or keeping a bad row is not).
+ */
+export function coerceEntities(data: unknown, documentId: string): Entity[] | null {
+  if (!Array.isArray(data)) return null;
+  const out: Entity[] = [];
+  for (const item of data) {
+    if (!isRecord(item)) continue;
+    const id =
+      typeof item.id === "string" && item.id.length > 0
+        ? item.id
+        : `${documentId}:${typeof item.name === "string" ? item.name : crypto.randomUUID()}`;
+    const parsed = EntitySchema.safeParse({ ...item, id, documentId });
+    if (parsed.success) out.push(parsed.data);
+  }
+  return out;
 }
 
 /**

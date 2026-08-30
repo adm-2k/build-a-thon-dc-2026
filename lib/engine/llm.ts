@@ -640,3 +640,224 @@ export async function hf<T>(call: LlmCall<T>): Promise<DepResult<T>> {
     }
   });
 }
+
+/* ── NER (Prosopon, N°04) — ner(): its own top-level ladder, like hfVision ─
+ *
+ * DATA-CAVEATS addendum 2 §11: "Gemini primary ... HF text model as
+ * fallback rung, fixture floor at fixtures/ner/." This CANNOT reuse
+ * gemini()/hf() directly — both are hardcoded to their OWN dep name for
+ * caching and fixtures (fixtures/gemini/, fixtures/hf/), so a route calling
+ * them can never reach fixtures/ner/*.json even when it passes `fixture`.
+ * ner() is its own dep ('ner' in dep_cache and fixtures/ner/), content-hash
+ * cached like gemini()/hf()/hfVision(), with the HF fallback INSIDE the
+ * live rung (same shape as hfVision()'s two-model live rung, models
+ * swapped: Gemini primary here, HF fallback here — opposite of OCR).
+ */
+
+export interface NerCall<T> {
+  /** Output contract — flat shapes only, same rule as LlmCall. */
+  schema: z.ZodType<T>;
+  /** The document text to run NER on. */
+  prompt: string;
+  system?: string;
+  /** fixtures/ner/<fixture>.json — floor of the ladder; falls back to default.json. */
+  fixture?: string;
+}
+
+function nerPromptWith(call: NerCall<unknown>, repair?: string): string {
+  if (!repair) return call.prompt;
+  return `${call.prompt}\n\nYour previous response failed schema validation with this error:\n${repair}\n\nReturn ONLY a corrected response that satisfies the schema exactly. No prose.`;
+}
+
+function nerContentHash(call: NerCall<unknown>): string {
+  return sha256(
+    JSON.stringify({
+      dep: "ner",
+      system: call.system ?? "",
+      prompt: call.prompt,
+      schema: schemaFingerprint(call.schema),
+    }),
+  );
+}
+
+async function geminiNerInvoke<T>(
+  call: NerCall<T>,
+  signal: AbortSignal,
+  repair?: string,
+): Promise<unknown> {
+  const result = await generateText({
+    model: getGoogle()(env.GEMINI_MODEL),
+    system: call.system,
+    prompt: nerPromptWith(call, repair),
+    output: Output.object({ schema: call.schema }),
+    abortSignal: signal,
+    maxRetries: 0,
+    providerOptions: {
+      google: { thinkingConfig: { thinkingLevel: "low" } },
+    },
+  });
+  return result.output;
+}
+
+async function hfNerInvoke<T>(
+  call: NerCall<T>,
+  signal: AbortSignal,
+  repair?: string,
+): Promise<unknown> {
+  const schemaJson = schemaFingerprint(call.schema);
+  const system = [
+    call.system,
+    `Respond with ONLY minified JSON that validates against this JSON Schema — no prose, no markdown, no code fences:\n${schemaJson}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const res = await fetch(HF_ROUTER_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.HF_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: env.HF_FORMALIZER_MODEL,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: nerPromptWith(call, repair) },
+      ],
+      temperature: 0,
+      max_tokens: 4096, // a full document's entity list can run long
+    }),
+    signal,
+  });
+  if (!res.ok) {
+    throw new HttpFailure(res.status, `HF router responded ${res.status}`);
+  }
+  const body = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const text = body.choices?.[0]?.message?.content;
+  if (typeof text !== "string" || text.trim() === "") {
+    throw new SchemaFailure("empty completion from HF router");
+  }
+  try {
+    return JSON.parse(stripFences(text)) as unknown;
+  } catch {
+    throw new SchemaFailure(
+      `completion was not valid JSON (starts: ${stripFences(text).slice(0, 120)})`,
+    );
+  }
+}
+
+/**
+ * One live rung, two models: Gemini primary (one repair re-prompt on parse
+ * failure), HF fallback INSIDE live when Gemini's attempt (incl. its
+ * repair) still fails — DATA-CAVEATS addendum 2 §11. Anything beyond this
+ * throws, so the ladder above falls to cached/fixture/lacuna.
+ */
+async function callNerWithPolicy<T>(call: NerCall<T>, signal: AbortSignal): Promise<T> {
+  const parseOrThrow = (raw: unknown): T => {
+    const parsed = call.schema.safeParse(raw);
+    if (!parsed.success) throw new SchemaFailure(z.prettifyError(parsed.error));
+    return parsed.data;
+  };
+
+  try {
+    try {
+      return parseOrThrow(await geminiNerInvoke(call, signal));
+    } catch (err) {
+      if (!isParseFailure(err)) throw err;
+      console.warn("[ner] Gemini parse failed — one repair re-prompt");
+      return parseOrThrow(await geminiNerInvoke(call, signal, errText(err)));
+    }
+  } catch (err) {
+    console.warn(`[ner] Gemini failed (${errText(err)}) — HF fallback rung`);
+  }
+
+  try {
+    return parseOrThrow(await hfNerInvoke(call, signal));
+  } catch (err) {
+    if (!isParseFailure(err)) throw err;
+    console.warn("[ner] HF parse failed — one repair re-prompt");
+    return parseOrThrow(await hfNerInvoke(call, signal, errText(err)));
+  }
+}
+
+async function serveNerFixture<T>(
+  call: NerCall<T>,
+  lacunaKey: string,
+  tried: DepMode[],
+  parse: (payload: unknown) => T | undefined,
+): Promise<DepResult<T>> {
+  tried.push("fixture");
+  const slug = call.fixture ?? "default";
+  const fixture = await readFixtureWithDefault("ner", slug);
+  if (fixture !== undefined) {
+    const data = parse(fixture);
+    if (data !== undefined) return { ok: true, data, mode: "fixture" };
+    console.warn(`[ner] fixture ${slug} failed schema — LACUNA`);
+    return makeLacuna("ner", lacunaKey, `fixture ${slug} failed schema validation`, tried);
+  }
+  console.warn(`[ner] fixture miss (${slug}) — LACUNA`);
+  return makeLacuna(
+    "ner",
+    lacunaKey,
+    `no response at any rung (fixtures/ner/${slug}.json missing)`,
+    tried,
+  );
+}
+
+export async function ner<T>(call: NerCall<T>): Promise<DepResult<T>> {
+  const mode = depMode("ner");
+  const key = nerContentHash(call);
+  const lacunaKey = `${call.fixture ?? "default"}#${key.slice(0, 12)}`;
+  const tried: DepMode[] = [];
+
+  const parse = (payload: unknown): T | undefined => {
+    const parsed = call.schema.safeParse(payload);
+    return parsed.success ? parsed.data : undefined;
+  };
+
+  /* fixture mode: canned response, zero network, zero keys */
+  if (mode === "fixture") {
+    return serveNerFixture(call, lacunaKey, tried, parse);
+  }
+
+  /* content-hash cache, both modes: in-memory first, then dep_cache */
+  const hit = memoryCache.get(key);
+  if (hit) {
+    const data = parse(hit.data);
+    if (data !== undefined)
+      return { ok: true, data, mode: "cached", fetchedAt: hit.at };
+  }
+  tried.push("cached");
+  const row = await readDepCache("ner", key);
+  if (row) {
+    const data = parse(row.payload);
+    if (data !== undefined) {
+      memoryCache.set(key, { data, at: row.fetched_at });
+      return { ok: true, data, mode: "cached", fetchedAt: row.fetched_at };
+    }
+  }
+
+  /* live rung — Gemini primary, HF fallback INSIDE live */
+  if (mode === "live") {
+    tried.push("live");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), DEP_TIMEOUT_MS.ner);
+    try {
+      const data = await callNerWithPolicy(call, controller.signal);
+      const at = new Date().toISOString();
+      memoryCache.set(key, { data, at });
+      await writeDepCache("ner", key, data); // no-ops keylessly, never throws
+      return { ok: true, data, mode: "live" };
+    } catch (err) {
+      console.warn(`[ner] live failed (${errText(err)}) — falling to fixture`);
+    } finally {
+      clearTimeout(timer);
+    }
+  } else {
+    console.warn("[ner] cached miss — falling to fixture");
+  }
+
+  return serveNerFixture(call, lacunaKey, tried, parse);
+}
