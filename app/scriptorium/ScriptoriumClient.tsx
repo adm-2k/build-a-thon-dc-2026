@@ -233,7 +233,7 @@ export function ScriptoriumClient() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
           style={{
-            border: `1px solid ${image ? "var(--hairline)" : "var(--hairline)"}`,
+            border: "1px solid var(--hairline)",
             borderRadius: "var(--radius)",
             padding: image ? 0 : "calc(var(--space-unit) * 6) var(--space-unit)",
             textAlign: image ? undefined : "center",
@@ -248,32 +248,37 @@ export function ScriptoriumClient() {
               style={{ display: "block", width: "100%", height: "auto" }}
             />
           ) : (
-            <label style={{ cursor: "pointer", display: "block" }}>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                display: "block",
+                width: "100%",
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                font: "inherit",
+                cursor: "pointer",
+              }}
+            >
               <MicroLabel tone="dim">
                 Drop a page image here, or choose a file
               </MicroLabel>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={onFileInputChange}
-                style={{ display: "none" }}
-              />
-            </label>
+            </button>
           )}
         </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={onFileInputChange}
+          style={{ display: "none" }}
+        />
         {image ? (
           <div style={{ marginTop: "var(--space-unit)", display: "flex", gap: "var(--space-unit)", alignItems: "center" }}>
             <button type="button" style={secondaryButton} onClick={() => fileInputRef.current?.click()}>
               Replace image
             </button>
-            <input
-              type="file"
-              accept="image/*"
-              ref={fileInputRef}
-              onChange={onFileInputChange}
-              style={{ display: "none" }}
-            />
             <MicroLabel tone="dim">
               {image.width}×{image.height}px
             </MicroLabel>
@@ -343,6 +348,7 @@ export function ScriptoriumClient() {
               </select>
               <input
                 type="text"
+                aria-label="Override with a model id"
                 placeholder="Or override with a model id"
                 value={customModel}
                 onChange={(e) => setCustomModel(e.target.value)}

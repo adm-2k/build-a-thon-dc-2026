@@ -237,6 +237,7 @@ export function TracerClient() {
             <button
               type="button"
               style={sourceText.trim() ? primaryButton : disabledPrimaryButton}
+              disabled={!sourceText.trim()}
               onClick={() => void onTrace()}
             >
               Trace claims
