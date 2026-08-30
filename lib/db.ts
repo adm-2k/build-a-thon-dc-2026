@@ -102,6 +102,26 @@ function opWarn(helper: string, error: { message?: string } | string): void {
   console.warn(`[db] ${helper} failed: ${message}`);
 }
 
+/**
+ * One retry for a write op (DATA-CAVEATS §7: "all writes go through helper
+ * functions in db.ts so there is exactly one place to add retry" — this is
+ * that place). Venue wifi and momentary Supabase connection blips are the
+ * expected failure mode (DATA-CAVEATS §9), not bad data — a second failure
+ * after the retry is a real state (the caller's null/false/[] return),
+ * never an infinite loop. No lane adds its own retry loop elsewhere.
+ */
+async function retryWrite<T>(
+  label: string,
+  // PromiseLike, not Promise: supabase-js query builders are thenable but
+  // don't implement the full Promise interface (.catch/.finally).
+  op: () => PromiseLike<{ data: T; error: { message?: string } | null }>,
+): Promise<{ data: T; error: { message?: string } | null }> {
+  const first = await op();
+  if (!first.error) return first;
+  console.warn(`[db] ${label} failed (${first.error.message ?? "unknown"}) — one retry`);
+  return op();
+}
+
 /* ── documents ──────────────────────────────────────────────────────────── */
 
 export async function insertDocument(row: {
@@ -111,7 +131,9 @@ export async function insertDocument(row: {
 }): Promise<DocumentRow | null> {
   const c = getClient();
   if (!c) return noopWarn("insertDocument"), null;
-  const { data, error } = await c.from("documents").insert(row).select().single();
+  const { data, error } = await retryWrite("insertDocument", () =>
+    c.from("documents").insert(row).select().single(),
+  );
   if (error) return opWarn("insertDocument", error), null;
   return data as DocumentRow;
 }
@@ -159,7 +181,9 @@ export async function insertClaims(
 ): Promise<ClaimRow[]> {
   const c = getClient();
   if (!c) return noopWarn("insertClaims"), [];
-  const { data, error } = await c.from("claims").insert(rows).select();
+  const { data, error } = await retryWrite("insertClaims", () =>
+    c.from("claims").insert(rows).select(),
+  );
   if (error) return opWarn("insertClaims", error), [];
   return (data ?? []) as ClaimRow[];
 }
@@ -170,7 +194,7 @@ export async function updateClaim(
 ): Promise<boolean> {
   const c = getClient();
   if (!c) return noopWarn("updateClaim"), true; // ok in keyless mode
-  const { error } = await c.from("claims").update(patch).eq("id", id);
+  const { error } = await retryWrite("updateClaim", () => c.from("claims").update(patch).eq("id", id));
   if (error) return opWarn("updateClaim", error), false;
   return true;
 }
@@ -188,7 +212,9 @@ export async function insertSourceDocs(
 ): Promise<SourceDocRow[]> {
   const c = getClient();
   if (!c) return noopWarn("insertSourceDocs"), [];
-  const { data, error } = await c.from("source_docs").insert(rows).select();
+  const { data, error } = await retryWrite("insertSourceDocs", () =>
+    c.from("source_docs").insert(rows).select(),
+  );
   if (error) return opWarn("insertSourceDocs", error), [];
   return (data ?? []) as SourceDocRow[];
 }
@@ -205,9 +231,9 @@ export async function upsertTermSnapshots(
 ): Promise<boolean> {
   const c = getClient();
   if (!c) return noopWarn("upsertTermSnapshots"), true;
-  const { error } = await c
-    .from("term_snapshots")
-    .upsert(rows, { onConflict: "term,year_bucket" });
+  const { error } = await retryWrite("upsertTermSnapshots", () =>
+    c.from("term_snapshots").upsert(rows, { onConflict: "term,year_bucket" }),
+  );
   if (error) return opWarn("upsertTermSnapshots", error), false;
   return true;
 }
@@ -249,9 +275,11 @@ export async function writeDepCache(
 ): Promise<boolean> {
   const c = getClient();
   if (!c) return noopWarn("writeDepCache"), true;
-  const { error } = await c.from("dep_cache").upsert(
-    { dep, key_hash: keyHash, payload, fetched_at: new Date().toISOString() },
-    { onConflict: "dep,key_hash" },
+  const { error } = await retryWrite("writeDepCache", () =>
+    c.from("dep_cache").upsert(
+      { dep, key_hash: keyHash, payload, fetched_at: new Date().toISOString() },
+      { onConflict: "dep,key_hash" },
+    ),
   );
   if (error) return opWarn("writeDepCache", error), false;
   return true;
@@ -260,13 +288,15 @@ export async function writeDepCache(
 /* ── events (hub ticker) ────────────────────────────────────────────────── */
 
 export async function insertEvent(row: {
-  instrument: "01" | "02" | "03";
+  instrument: "00" | "01" | "02" | "03" | "04";
   verb: string;
   count?: number;
 }): Promise<EventRow | null> {
   const c = getClient();
   if (!c) return noopWarn("insertEvent"), null;
-  const { data, error } = await c.from("events").insert(row).select().single();
+  const { data, error } = await retryWrite("insertEvent", () =>
+    c.from("events").insert(row).select().single(),
+  );
   if (error) return opWarn("insertEvent", error), null;
   return data as EventRow;
 }
