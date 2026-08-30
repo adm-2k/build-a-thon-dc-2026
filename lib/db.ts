@@ -116,6 +116,20 @@ export async function insertDocument(row: {
   return data as DocumentRow;
 }
 
+/** Corpus list — Tracer's corpus picker, Map's multi-select, Prosopon's
+ * per-document NER sweep (SPEC v2 §5). Newest first; [] keyless (LACUNA). */
+export async function listDocuments(limit = 100): Promise<DocumentRow[]> {
+  const c = getClient();
+  if (!c) return noopWarn("listDocuments"), [];
+  const { data, error } = await c
+    .from("documents")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) return opWarn("listDocuments", error), [];
+  return (data ?? []) as DocumentRow[];
+}
+
 /* ── claims ─────────────────────────────────────────────────────────────── */
 
 export async function insertClaims(
