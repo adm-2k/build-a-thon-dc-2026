@@ -11,9 +11,11 @@
 import { z } from "zod";
 import {
   ClaimSchema,
+  DocumentSchema,
   LogicalFormSchema,
   SourceVerdictSchema,
   type Claim,
+  type Document,
   type LogicalForm,
   type SourceVerdict,
 } from "@/lib/engine/schemas";
@@ -108,29 +110,16 @@ export async function traceClaim(claim: Claim): Promise<Outcome<SourceVerdict>> 
   });
 }
 
+export type { Document };
+
 /**
- * // LACUNA(lane-tracer): GET /api/documents (SPEC §2, Lane A v2 item 4) does
- * // not exist on origin/main yet, and no `Document`/corpus-row type has
- * // landed in lib/engine/schemas.ts. This structural type and its tolerant
- * // field-name coercion (mirroring the coercePage/coerceSearchResults style
- * // in app/api/_lib/wire.ts) are a placeholder for the corpus picker only —
- * // replace with the real schemas.ts type + shape the moment Lane A ships
- * // it; if the real contract differs, that's a HANDOFF cross-lane note, not
- * // a silent widen.
+ * GET /api/documents → Document[] (SPEC §3: {id, text?, sourceUrl?, tool?,
+ * createdAt} — validated against the real schemas.ts contract, never a
+ * local duck-typed shape (CLAUDE.md eng rule 1; matches the Map/Prosopon
+ * fix in #23, which is where the "Document has no title field" finding
+ * that shaped this came from).
  */
-export type CorpusDocument = { id: string; title: string; text: string };
-
-function coerceCorpusDocument(item: unknown): CorpusDocument | null {
-  if (!isRecord(item)) return null;
-  const id = readString(item.id);
-  if (!id) return null;
-  const title = readString(item.title) ?? readString(item.sourceUrl) ?? id;
-  const text =
-    readString(item.text) ?? readString(item.rawText) ?? readString(item.raw_text) ?? "";
-  return { id, title, text };
-}
-
-export async function listCorpusDocuments(): Promise<Outcome<CorpusDocument[]>> {
+export async function listCorpusDocuments(): Promise<Outcome<Document[]>> {
   let res: Response;
   try {
     res = await fetch("/api/documents");
@@ -151,7 +140,11 @@ export async function listCorpusDocuments(): Promise<Outcome<CorpusDocument[]>> 
   }
 
   const raw = isRecord(json) && Array.isArray(json.data) ? json.data : [];
-  const docs = raw.map(coerceCorpusDocument).filter((d): d is CorpusDocument => d !== null);
+  const docs: Document[] = [];
+  for (const row of raw) {
+    const parsed = DocumentSchema.safeParse(row);
+    if (parsed.success) docs.push(parsed.data);
+  }
   const mode: DepMode =
     isRecord(json) && (json.mode === "live" || json.mode === "cached") ? json.mode : "fixture";
   return { ok: true, data: docs, mode };

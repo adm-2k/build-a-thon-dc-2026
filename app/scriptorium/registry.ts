@@ -55,18 +55,20 @@ export type LanguageOption = (typeof LANGUAGE_OPTIONS)[number]["value"];
 export const MAX_LONGEST_EDGE = 1600;
 
 /**
- * The three real corpus fixtures Lane D harvested (live HF-router OCR,
- * eyeballed against the source scans) — `fixtures/ocr/<slug>.json`. POST
- * /api/ocr's `fixture` param (added #19, 2026-08-30) selects one of these
- * when the ladder falls to its floor; Scriptorium offers them as an
- * explicit "demo page" choice so a keyless build can still show a real
- * transcription end to end instead of only ever reaching LACUNA.
- * Selecting "" (the default) sends no `fixture` override — live/cached
- * behavior is unaffected either way.
+ * The real corpus fixtures Lane D harvested (live HF-router OCR, eyeballed
+ * against the source scans) — `fixtures/ocr/<slug>.json`. POST /api/ocr's
+ * `fixture` param (added #19, 2026-08-30) selects one of these when the
+ * ladder falls to its floor; Scriptorium offers them as an explicit "demo
+ * page" choice so a keyless build can still show a real transcription end
+ * to end instead of only ever reaching LACUNA. Selecting "" (the default)
+ * sends no `fixture` override — live/cached behavior is unaffected either
+ * way, and the ladder's own floor now falls to `fixtures/ocr/default.json`
+ * (added #22) rather than a guaranteed LACUNA when no slug is given.
  */
 export const DEMO_FIXTURES = [
-  { slug: "", label: "None — use the uploaded image" },
-  { slug: "eb1911-rationalism", label: "EB1911 Vol. 22 (EN print)" },
+  { slug: "", label: "None — use the uploaded image (or the ladder's default)" },
+  { slug: "eb1911-rationalism-2", label: "EB1911 Vol. 22 — Rationalism (EN print)" },
   { slug: "die-kunst-1899-buchgewerbe", label: "Die Kunst, 1899 (DE Antiqua)" },
   { slug: "gartenlaube-1899-nervenschutz", label: "Die Gartenlaube, 1899 (DE Fraktur)" },
+  { slug: "wright-diary-1903", label: "Wright diary, 1903 (EN handwriting)" },
 ] as const;
