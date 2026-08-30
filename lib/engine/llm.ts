@@ -342,6 +342,14 @@ function visionPromptWith(call: VisionCall<unknown>, repair?: string): string {
   return `${call.prompt}\n\nYour previous response failed schema validation with this error:\n${repair}\n\nReturn ONLY a corrected response that satisfies the schema exactly. No prose.`;
 }
 
+/** Read the IANA media type off a "data:<mediaType>;base64,…" URL (SPEC v2
+ * §5: client sends JPEG or PNG); defaults to image/jpeg — the SPEC'd
+ * client-side downscale format — when the prefix is missing or malformed. */
+function dataUrlMediaType(dataUrl: string): string {
+  const match = /^data:([^;,]+)[;,]/.exec(dataUrl);
+  return match?.[1] || "image/jpeg";
+}
+
 /**
  * Stamp the model that ACTUALLY produced this result onto the raw object
  * (SPEC §4: the OCR ProvenanceChip names the model — provenance in the
@@ -440,7 +448,11 @@ async function geminiVisionInvoke<T>(
         role: "user",
         content: [
           { type: "text", text: visionPromptWith(call, repair) },
-          { type: "image", image: call.imageDataUrl },
+          {
+            type: "file",
+            data: call.imageDataUrl,
+            mediaType: dataUrlMediaType(call.imageDataUrl),
+          },
         ],
       },
     ],
