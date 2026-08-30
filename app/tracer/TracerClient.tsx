@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import type { Claim, LogicalForm, SourceVerdict } from "@/lib/engine/schemas";
+import type { Claim, Document, LogicalForm, SourceVerdict } from "@/lib/engine/schemas";
 import {
   ApparatusMargin,
   MarginSection,
@@ -15,11 +15,24 @@ import {
   formalizeClaim,
   listCorpusDocuments,
   traceClaim,
-  type CorpusDocument,
   type DepMode,
 } from "./tracer-client";
 
 const CLAIM_CAP = 8; // mirrors app/api/extract/route.ts (SPEC §5)
+
+/**
+ * Document (SPEC §3) has no `title` field — {id, text?, sourceUrl?, tool?,
+ * createdAt}. Same snippet-label pattern as the Map/Prosopon fix (#23):
+ * prefer a one-line, truncated snippet of the transcription; fall back to
+ * sourceUrl, then the bare id when there's no text at all.
+ */
+function labelFor(doc: Document): string {
+  if (doc.text && doc.text.trim()) {
+    const oneLine = doc.text.replace(/\s+/g, " ").trim();
+    return oneLine.length > 72 ? `${oneLine.slice(0, 71)}…` : oneLine;
+  }
+  return doc.sourceUrl ?? doc.id;
+}
 
 type ClaimEntry = {
   claim: Claim;
@@ -127,7 +140,7 @@ export function TracerClient() {
   const [extractError, setExtractError] = useState<string | null>(null);
   const [entries, setEntries] = useState<ClaimEntry[]>([]);
 
-  const [corpusDocs, setCorpusDocs] = useState<CorpusDocument[] | null>(null);
+  const [corpusDocs, setCorpusDocs] = useState<Document[] | null>(null);
   const [corpusError, setCorpusError] = useState<string | null>(null);
   const [corpusLoading, setCorpusLoading] = useState(true);
 
@@ -190,8 +203,8 @@ export function TracerClient() {
     fresh.forEach((e) => void resolveClaim(e.claim));
   }
 
-  function loadCorpusDoc(doc: CorpusDocument) {
-    setSourceText(doc.text);
+  function loadCorpusDoc(doc: Document) {
+    setSourceText(doc.text ?? "");
   }
 
   const sourcedCount = entries.filter((e) => e.verdict?.status === "sourced").length;
@@ -311,7 +324,7 @@ export function TracerClient() {
                   style={{ ...secondaryButton, textAlign: "left" }}
                   onClick={() => loadCorpusDoc(doc)}
                 >
-                  {doc.title}
+                  {labelFor(doc)}
                 </button>
               ))}
             </div>
