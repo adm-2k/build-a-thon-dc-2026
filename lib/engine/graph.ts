@@ -18,9 +18,10 @@ import type { StanceCluster, Entity } from "./schemas";
  * Re-exported so call sites that already `import { ..., type Entity } from
  * "@/lib/engine/graph"` (app/network/NetworkClient.tsx) keep working — the
  * canonical definition is schemas.ts's EntitySchema (CLAUDE.md eng rule 1).
- * Schemas v2 landed 2026-08-30 (#4); this replaces the LACUNA(lane-map)
- * file-local placeholder that shipped in #5 — field-for-field identical, so
- * nothing downstream of the type needed to change.
+ * Schemas v2 landed 2026-08-30 (#4); this replaces the temporary file-local
+ * placeholder that shipped in #5 — field-for-field identical, so nothing
+ * downstream of the type needed to change. (No remaining debt from that
+ * placeholder as of #23, which did this swap.)
  */
 export type { Entity };
 
