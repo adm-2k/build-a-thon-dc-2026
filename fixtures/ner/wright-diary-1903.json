@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Orville Wright",
+    "kind": "person",
+    "mentions": 6
+  },
+  {
+    "name": "Wilbur Wright",
+    "kind": "person",
+    "mentions": 4
+  },
+  {
+    "name": "Kitty Hawk",
+    "kind": "place",
+    "mentions": 1
+  }
+]

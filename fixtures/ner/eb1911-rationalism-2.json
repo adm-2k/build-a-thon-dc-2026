@@ -1,0 +1,327 @@
+[
+  {
+    "name": "Locke",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Descartes",
+    "kind": "person",
+    "mentions": 2
+  },
+  {
+    "name": "Leibnitz",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Wolff",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "David Hume",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Kant",
+    "kind": "person",
+    "mentions": 2
+  },
+  {
+    "name": "J. S. Semler",
+    "kind": "person",
+    "mentions": 2
+  },
+  {
+    "name": "Gruner",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Ernesti",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "J. D. Michaelis",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Griesbach",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "J. G. Eichhorn",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Die Religion innerhalb der Grenzen der blossen Vernunft",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Wegscheider",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Bretschneider",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "H. E. G. Paulus",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Schleiermacher",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Hase",
+    "kind": "person",
+    "mentions": 2
+  },
+  {
+    "name": "Hutterus Redivivus",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Röhr",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Ständlin",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Geschichte des Rationalismus",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Göttingen",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Theologische Streitschriften in Gesammelte Werke",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Rückert",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Der Rationalismus",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Tholuck",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Vorgeschichte des Rat.",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Geschichte des Rat.",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Ritschl",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Christ. Lehre von der Rechtfertigung, &c.",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Benn",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "History of Rationalism",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "O. Kirn",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Herzog-Hauck, Realencyk.",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "RATISBONNE, LOUIS GUSTAVE FORTUNÉ",
+    "kind": "person",
+    "mentions": 2
+  },
+  {
+    "name": "Strassburg",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Collège Henry IV.",
+    "kind": "org",
+    "mentions": 1
+  },
+  {
+    "name": "Paris",
+    "kind": "place",
+    "mentions": 2
+  },
+  {
+    "name": "Journal des Débats",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Fontainebleau",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Senate",
+    "kind": "org",
+    "mentions": 1
+  },
+  {
+    "name": "Divina Commedia",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "L’Enfer",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Academy",
+    "kind": "org",
+    "mentions": 1
+  },
+  {
+    "name": "Le Purgatoire",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Le Paradis",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "La Comédie enfantine",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Les Figures jeunes",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Alfred de Vigny",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Destinées",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Journal d’un poète",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "B. Merrem",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Abb. Ak. Wiss., Berlin",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Berlin",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "C. L. Nitzsch",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "T. H. Huxley",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "P. L. Sclater",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "A. Newton",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "R. B. Sharpe",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Sir R. Owen",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Comp. Anat. and Physiol. of Vertebrates",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "A. W. Forbes",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "B. Lindsay",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "P. Z. S.",
+    "kind": "work",
+    "mentions": 1
+  }
+]

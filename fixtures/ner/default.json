@@ -1,0 +1,272 @@
+[
+  {
+    "name": "Dr T. C. Jerdon",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "India",
+    "kind": "place",
+    "mentions": 3
+  },
+  {
+    "name": "Himalaya",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Dr W. T. Blanford",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Fauna of British India",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Cape",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "R. L.",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "RATH, GERHARD VOM",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Germany",
+    "kind": "place",
+    "mentions": 2
+  },
+  {
+    "name": "Dinsburg",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Prussia",
+    "kind": "place",
+    "mentions": 3
+  },
+  {
+    "name": "Cologne",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Bonn University",
+    "kind": "org",
+    "mentions": 2
+  },
+  {
+    "name": "Berlin",
+    "kind": "place",
+    "mentions": 3
+  },
+  {
+    "name": "Nöggerath",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Southern Europe",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Palestine",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "United States",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Coblenz",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Ein Ausflug nach Kalabrien",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Der Monzoni im südöstlichen Tirol",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Durch Italian und Griechenland nach dem Heiligen Land",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Professor H. Laspeyres",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Sitzungsbericht des nat. Vereins der preussischen Rheinlande",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "RATHENOW",
+    "kind": "place",
+    "mentions": 4
+  },
+  {
+    "name": "Brandenburg",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Havel",
+    "kind": "place",
+    "mentions": 2
+  },
+  {
+    "name": "Hanover",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "church of St Mary and St Andrew",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "church of St George",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Magdeburg",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Saxons",
+    "kind": "org",
+    "mentions": 1
+  },
+  {
+    "name": "Swedes",
+    "kind": "org",
+    "mentions": 1
+  },
+  {
+    "name": "Brandenburgers",
+    "kind": "org",
+    "mentions": 1
+  },
+  {
+    "name": "Wagener",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Denkwürdigkeiten der Stadt Rathenow",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "RATIBOR",
+    "kind": "place",
+    "mentions": 5
+  },
+  {
+    "name": "Silesia",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Oder",
+    "kind": "place",
+    "mentions": 2
+  },
+  {
+    "name": "Breslau",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Oderberg",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Schinkel",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Austria",
+    "kind": "place",
+    "mentions": 2
+  },
+  {
+    "name": "Victor Amadeus",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Hesse-Rotenburg",
+    "kind": "place",
+    "mentions": 1
+  },
+  {
+    "name": "Prince Victor of Hohenlohe-Schillingsfürst",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "A. Weltz",
+    "kind": "person",
+    "mentions": 1
+  },
+  {
+    "name": "Geschichte der Stadt und Herrschaft Ratibor",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "RATIONALISM",
+    "kind": "concept",
+    "mentions": 3
+  },
+  {
+    "name": "Bible",
+    "kind": "work",
+    "mentions": 2
+  },
+  {
+    "name": "book of Genesis",
+    "kind": "work",
+    "mentions": 1
+  },
+  {
+    "name": "Creation",
+    "kind": "concept",
+    "mentions": 1
+  },
+  {
+    "name": "Deluge",
+    "kind": "concept",
+    "mentions": 1
+  },
+  {
+    "name": "Old Testament",
+    "kind": "work",
+    "mentions": 1
+  }
+]
