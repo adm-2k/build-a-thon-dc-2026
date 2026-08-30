@@ -55,18 +55,31 @@ export const StanceRequestSchema = z.object({
 });
 
 /**
- * POST /api/ner body (SPEC v2 §5, N°04) — the client sends only the id
- * (already-merged Prosopon page: `{documentId}`); the route looks up the
- * document's text itself. `fixture` is an optional forward-compat hook
- * (same rationale as OcrRequestSchema.fixture): no slug is guessed
- * server-side from a random document id, so an unnamed request in fixture
- * mode correctly bottoms out at a typed LACUNA rather than attributing an
- * unrelated corpus page's entities to the wrong document.
+ * POST /api/ner body (SPEC v2 §5, N°04). Two input modes, paste-first like
+ * /api/extract:
+ *   - `documentId` — the already-merged Prosopon page's corpus sweep sends
+ *     only this; the route looks up the document's text via lib/db.ts.
+ *   - `text` — lets a caller (e.g. Scriptorium, before "Fix in the
+ *     record" persists anything) run NER directly on a transcription that
+ *     has no document id yet, content-hash cached like any other ner()
+ *     call.
+ * Exactly one of the two must be present. `fixture` names the
+ * fixtures/ner/<fixture>.json floor; when omitted, a `documentId` request
+ * refuses to default (would fabricate identical entities across a
+ * multi-document sweep — see llm.ts's NerCall.allowDefaultFixture), while
+ * a bare `text` request may still default (only ever one such request in
+ * flight at a time, no fabrication risk).
  */
-export const NerRequestSchema = z.object({
-  documentId: z.string().min(1, "a document id is required"),
-  fixture: z.string().min(1).optional(),
-});
+export const NerRequestSchema = z
+  .object({
+    documentId: z.string().min(1).optional(),
+    text: z.string().min(1).optional(),
+    fixture: z.string().min(1).optional(),
+  })
+  .refine((body) => Boolean(body.documentId) || Boolean(body.text), {
+    message: "either documentId or text is required",
+    path: ["documentId"],
+  });
 
 /**
  * POST /api/ocr body (SPEC v2 §5, N°00). `script`/`language` are hints that

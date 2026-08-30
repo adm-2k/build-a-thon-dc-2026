@@ -1,21 +1,26 @@
 /**
- * POST /api/ner — one document → Entity[] (SPEC v2 §5, N°04 Prosopon).
+ * POST /api/ner — one document (or bare text) → Entity[] (SPEC v2 §5,
+ * N°04 Prosopon).
  *
- * Request is `{documentId, fixture?}` — the client (Prosopon's per-document
- * fan-out) sends only the id; the route looks up the document's text
- * itself via lib/db.ts. Runs through ner()'s own ladder (Gemini primary,
- * HF fallback rung inside live, then cached/fixture/lacuna — DATA-CAVEATS
- * addendum 2 §11); this is its own dep, NOT the shared gemini()/hf()
- * functions, because those are hardcoded to their own fixture directories
- * (fixtures/gemini/, fixtures/hf/) and could never reach fixtures/ner/.
- * Content-hash caching is free: ner() keys on {system, prompt, schema}, and
- * prompt IS the document text, so re-running a known document costs zero
- * quota.
+ * Two input modes, paste-first like /api/extract:
+ *   - `{documentId, fixture?}` — Prosopon's per-document corpus sweep;
+ *     the route looks up the document's text via lib/db.ts. An UNNAMED
+ *     request here refuses to default to fixtures/ner/default.json: every
+ *     document in a multi-document sweep would otherwise land on the SAME
+ *     canned entities, fabricating a dense false clique in the network —
+ *     it gets a typed LACUNA instead (llm.ts's NerCall.allowDefaultFixture).
+ *   - `{text, fixture?}` — runs NER directly on a transcription that has
+ *     no document id yet (e.g. Scriptorium before "Fix in the record").
+ *     An unnamed request here MAY default — only ever one such request in
+ *     flight, no fabrication risk.
  *
- * `fixture` is optional and never guessed server-side from a random
- * document id — an unnamed request in fixture mode correctly bottoms out
- * at a typed LACUNA rather than attributing an unrelated corpus page's
- * entities to the wrong document (same rationale as /api/ocr's `fixture`).
+ * Runs through ner()'s own ladder (Gemini primary, HF fallback rung inside
+ * live, then cached/fixture/lacuna — DATA-CAVEATS addendum 2 §11); this is
+ * its own dep, NOT the shared gemini()/hf() functions, because those are
+ * hardcoded to their own fixture directories (fixtures/gemini/,
+ * fixtures/hf/) and could never reach fixtures/ner/. Content-hash caching
+ * is free: ner() keys on {system, prompt, schema}, and prompt IS the
+ * document text, so re-running a known document costs zero quota.
  */
 import { getDocumentById } from "@/lib/db";
 import { ner } from "@/lib/engine/llm";
@@ -58,22 +63,37 @@ export const POST = guard(async (req) => {
 
   const parsed = NerRequestSchema.safeParse(body.body);
   if (!parsed.success) return badRequest(zodIssues(parsed.error));
-  const { documentId, fixture } = parsed.data;
+  const { documentId, text, fixture } = parsed.data;
 
-  const doc = await getDocumentById(documentId);
-  if (doc === null || !doc.raw_text || doc.raw_text.trim() === "") {
-    return lacuna("db", "document not found or has no text to run NER on");
+  let sourceText: string;
+  let resultDocumentId: string;
+  let allowDefaultFixture: boolean;
+
+  if (documentId) {
+    const doc = await getDocumentById(documentId);
+    if (doc === null || !doc.raw_text || doc.raw_text.trim() === "") {
+      return lacuna("db", "document not found or has no text to run NER on");
+    }
+    sourceText = doc.raw_text;
+    resultDocumentId = documentId;
+    allowDefaultFixture = false; // multi-document sweep — never fabricate a shared entity set
+  } else {
+    // schema's refine() guarantees text is present when documentId is not
+    sourceText = text as string;
+    resultDocumentId = crypto.randomUUID(); // fresh correlation id, same pattern as /api/extract
+    allowDefaultFixture = true; // one bare-text request at a time — safe to default
   }
 
   const result = await ner({
     schema: NerWire,
     system: SYSTEM,
-    prompt: doc.raw_text,
+    prompt: sourceText,
     fixture,
+    allowDefaultFixture,
   });
   if (!result.ok) return lacuna(result.dep, result.reason);
 
-  const entities = coerceEntities(result.data, documentId);
+  const entities = coerceEntities(result.data, resultDocumentId);
   if (entities === null) {
     return lacuna("ner", "NER output failed Entity[] validation after the repair pass");
   }

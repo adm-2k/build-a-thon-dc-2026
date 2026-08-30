@@ -660,8 +660,21 @@ export interface NerCall<T> {
   /** The document text to run NER on. */
   prompt: string;
   system?: string;
-  /** fixtures/ner/<fixture>.json — floor of the ladder; falls back to default.json. */
+  /** fixtures/ner/<fixture>.json — floor of the ladder; falls back to
+   * default.json UNLESS allowDefaultFixture is explicitly false. */
   fixture?: string;
+  /**
+   * Whether an UNNAMED request (`fixture` omitted) may fall back to
+   * default.json — true unless the caller opts out. A multi-document
+   * corpus sweep (Prosopon charting N documents via N separate
+   * documentId-only calls) MUST pass false: every unnamed document would
+   * otherwise land on the SAME default.json content, fabricating a dense
+   * false clique of identical entities across unrelated documents. A
+   * single bare-text request (no documentId — e.g. a not-yet-saved
+   * Scriptorium transcription) is safe to default, since there is only
+   * ever one such request at a time.
+   */
+  allowDefaultFixture?: boolean;
 }
 
 function nerPromptWith(call: NerCall<unknown>, repair?: string): string {
@@ -789,6 +802,17 @@ async function serveNerFixture<T>(
   parse: (payload: unknown) => T | undefined,
 ): Promise<DepResult<T>> {
   tried.push("fixture");
+  if (call.fixture === undefined && call.allowDefaultFixture === false) {
+    console.warn(
+      "[ner] no fixture slug named and default-fixture fallback disallowed — LACUNA",
+    );
+    return makeLacuna(
+      "ner",
+      lacunaKey,
+      "no fixture slug named for this document — refusing to default (would fabricate identical entities across a multi-document sweep)",
+      tried,
+    );
+  }
   const slug = call.fixture ?? "default";
   const fixture = await readFixtureWithDefault("ner", slug);
   if (fixture !== undefined) {
