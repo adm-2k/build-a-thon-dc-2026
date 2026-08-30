@@ -1,0 +1,176 @@
+/**
+ * app/scriptorium/ocr-client.ts — browser-side calls to this app's own
+ * /api/ocr and /api/documents routes (NOT a raw external fetch — CLAUDE.md
+ * eng rule 2 governs server-to-external calls inside lib/engine/; a page
+ * calling its own Next.js API route is the normal client/server split).
+ *
+ * // LACUNA(lane-tracer): OcrResult is SPEC §3 v2 but not yet landed in
+ * // lib/engine/schemas.ts (Lane A charter item 1, ORCHESTRATION §5). The
+ * // type below mirrors SPEC §3 verbatim so replacing it with
+ * // `import type { OcrResult } from "@/lib/engine/schemas"` is a one-line
+ * // change once Lane A merges. Never widen this shape to dodge a mismatch —
+ * // if Lane A's real type differs, that is a HANDOFF cross-lane note, not a
+ * // silent local fix.
+ * //
+ * // LACUNA(lane-tracer): POST /api/ocr and POST /api/documents do not exist
+ * // on origin/main yet (Lane A charter items 3 and 4). Both calls below
+ * // degrade any non-2xx / malformed response to the same LACUNA shape the
+ * // rest of the suite uses (respond.ts's `{ data: null, lacuna }` envelope),
+ * // so the page already behaves correctly the moment those routes land —
+ * // nothing here should need to change except deleting this note.
+ */
+import type { LanguageOption, ScriptOption } from "./registry";
+
+export type OcrResult = {
+  documentId: string;
+  text: string;
+  model: string;
+  script: "print" | "handwriting";
+  language: "en" | "de" | "mixed";
+  pageNote?: string;
+};
+
+export type DepMode = "live" | "cached" | "fixture";
+
+export type OcrOutcome =
+  | { ok: true; data: OcrResult; mode: DepMode; fetchedAt?: string }
+  | { ok: false; reason: string };
+
+export type SaveOutcome =
+  | { ok: true; documentId: string }
+  | { ok: false; reason: string };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function coerceOcrResult(data: unknown, fallbackDocumentId: string): OcrResult | null {
+  if (!isRecord(data)) return null;
+  const text = readString(data.text);
+  const model = readString(data.model);
+  if (!text || !model) return null;
+  const script: OcrResult["script"] = data.script === "handwriting" ? "handwriting" : "print";
+  const language: OcrResult["language"] =
+    data.language === "de" ? "de" : data.language === "mixed" ? "mixed" : "en";
+  return {
+    documentId: readString(data.documentId) ?? fallbackDocumentId,
+    text,
+    model,
+    script,
+    language,
+    pageNote: readString(data.pageNote),
+  };
+}
+
+async function parseJson(res: Response): Promise<unknown> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/** POST /api/ocr {imageDataUrl, model?, script?, language?} → OcrResult (SPEC §5). */
+export async function requestTranscription(input: {
+  imageDataUrl: string;
+  model: string;
+  script: ScriptOption;
+  language: LanguageOption;
+}): Promise<OcrOutcome> {
+  let res: Response;
+  try {
+    res = await fetch("/api/ocr", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    return { ok: false, reason: "Could not reach the OCR route (network error)." };
+  }
+
+  const json = await parseJson(res);
+
+  if (res.status === 404) {
+    return {
+      ok: false,
+      reason: "POST /api/ocr is not wired into this build yet (Lane A, in progress).",
+    };
+  }
+  if (!res.ok) {
+    const message =
+      isRecord(json) && Array.isArray(json.issues) && json.issues[0] && isRecord(json.issues[0])
+        ? readString(json.issues[0].message)
+        : undefined;
+    return { ok: false, reason: message ?? `The OCR route answered HTTP ${res.status}.` };
+  }
+  if (isRecord(json) && json.lacuna) {
+    const reason = isRecord(json.lacuna) ? readString(json.lacuna.reason) : undefined;
+    return { ok: false, reason: reason ?? "The OCR ladder bottomed out." };
+  }
+
+  const provisionalId = crypto.randomUUID();
+  const result = coerceOcrResult(isRecord(json) ? json.data : null, provisionalId);
+  if (!result) {
+    return { ok: false, reason: "The OCR response did not match the expected shape." };
+  }
+  const mode: DepMode = isRecord(json) && (json.mode === "live" || json.mode === "cached") ? json.mode : "fixture";
+  const fetchedAt = isRecord(json) ? readString(json.fetchedAt) : undefined;
+  return { ok: true, data: result, mode, fetchedAt };
+}
+
+/**
+ * POST /api/documents — write the (possibly edited) transcription to the
+ * corpus (SPEC §3b: raw_text = transcription, source_url = image
+ * provenance, tool = "scriptorium").
+ */
+export async function saveToRecord(input: {
+  documentId: string;
+  text: string;
+  sourceUrl: string;
+  model: string;
+  script: ScriptOption;
+  language: LanguageOption;
+}): Promise<SaveOutcome> {
+  let res: Response;
+  try {
+    res = await fetch("/api/documents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: input.text,
+        sourceUrl: input.sourceUrl,
+        tool: "scriptorium",
+        ocr: { model: input.model, script: input.script, language: input.language },
+      }),
+    });
+  } catch {
+    return { ok: false, reason: "Could not reach the corpus route (network error)." };
+  }
+
+  const json = await parseJson(res);
+
+  if (res.status === 404) {
+    return {
+      ok: false,
+      reason: "POST /api/documents is not wired into this build yet (Lane A, in progress).",
+    };
+  }
+  if (!res.ok) {
+    return { ok: false, reason: `The corpus route answered HTTP ${res.status}.` };
+  }
+  if (isRecord(json) && json.lacuna) {
+    const reason = isRecord(json.lacuna) ? readString(json.lacuna.reason) : undefined;
+    return { ok: false, reason: reason ?? "The corpus write bottomed out." };
+  }
+
+  const data = isRecord(json) ? json.data : null;
+  const documentId = isRecord(data) ? readString(data.id) ?? readString(data.documentId) : undefined;
+  if (!documentId) {
+    return { ok: false, reason: "The corpus response did not include a document id." };
+  }
+  return { ok: true, documentId };
+}
