@@ -12,24 +12,17 @@
  * defect. Map uses first-appearance cluster order; Prosopon uses the closed,
  * globally-fixed entity kind taxonomy (ENTITY_KIND_ORDER below).
  */
-import type { StanceCluster } from "./schemas";
+import type { StanceCluster, Entity } from "./schemas";
 
 /**
- * LACUNA(lane-map): Entity isn't in lib/engine/schemas.ts yet — it lands
- * there via Lane A's SPEC v2 charter item 1 (schemas.ts is Lane A's sole
- * commit surface, ORCHESTRATION §2.3). This mirrors SPEC §3's Entity shape
- * verbatim as an interim, file-local type so Prosopon can be built now.
- * Swap this for `import type { Entity } from "./schemas";` the moment Lane
- * A merges it — no other code in this file should need to change.
+ * Re-exported so call sites that already `import { ..., type Entity } from
+ * "@/lib/engine/graph"` (app/network/NetworkClient.tsx) keep working — the
+ * canonical definition is schemas.ts's EntitySchema (CLAUDE.md eng rule 1).
+ * Schemas v2 landed 2026-08-30 (#4); this replaces the LACUNA(lane-map)
+ * file-local placeholder that shipped in #5 — field-for-field identical, so
+ * nothing downstream of the type needed to change.
  */
-export interface Entity {
-  id: string;
-  documentId: string;
-  name: string;
-  kind: "person" | "place" | "org" | "work" | "concept";
-  /** Mention count within `documentId` only — NOT the corpus-wide total. */
-  mentions: number;
-}
+export type { Entity };
 
 export interface ClusterNodeData {
   id: string;
